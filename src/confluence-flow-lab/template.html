@@ -3,13 +3,22 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>Confluence Flow Lab</title>
+<title>Confluence</title>
+<meta name="theme-color" content="#0F1A2E">
+<link rel="manifest" href="manifest.webmanifest">
+<link rel="icon" href="icons/favicon.svg" type="image/svg+xml">
+<link rel="apple-touch-icon" href="icons/icon-192.png">
 <style>
 :root{--bg:#f6f7f9;--card:#fff;--ink:#161a22;--mut:#6b7380;--line:#e3e6ec;--up:#168a4a;--dn:#d23a3a;--poc:#2f6fdc;--va:#e48a14;--gold:#e0a800;--pv:#7a828f;--cum:#0f9d8a;--buy:#1f6fe0;--sell:#d65f00;--on-buy:#fff;--on-sell:#fff;--vp:#7b4bd1;--star:#8f3fd1;--dot:#ff9f1c;--wl:#8f3fd1;--cvdl:#7a5a00;--acc:#2f6fdc}
 @media (prefers-color-scheme:dark){:root:not([data-theme=light]){--bg:#0f1218;--card:#171b23;--ink:#e8ebf1;--mut:#8b93a1;--line:#2a303b;--up:#35c274;--dn:#ef6a6a;--poc:#6ea2ff;--va:#f2a73b;--gold:#f2c230;--pv:#9aa2b0;--cum:#37c9b4;--buy:#5aa2ff;--sell:#ffa24d;--on-buy:#08203f;--on-sell:#2a1500;--vp:#b08cff;--star:#c79bff;--dot:#ffb15c;--wl:#c79bff;--cvdl:#f5d98a;--acc:#6ea2ff}}
 *{box-sizing:border-box}
 body{margin:0;background:var(--bg);color:var(--ink);font:14px/1.45 system-ui,-apple-system,"Segoe UI",Roboto,sans-serif}
 header{padding:14px 16px 8px}
+.brand{display:flex;align-items:center;gap:10px;margin-bottom:4px}.brand img{width:34px;height:34px;border-radius:9px;flex:none}
+.brand h1{font-size:20px;letter-spacing:.01em}.brand .tag{color:var(--mut);font-size:12.5px;font-weight:500}
+.install{display:block;margin:8px 0 2px;width:100%;max-width:420px;border:0;border-radius:12px;background:#F6C12E;color:#0F1A2E;font:800 15px system-ui,-apple-system,"Segoe UI",Roboto,sans-serif;padding:12px 14px;box-shadow:0 2px 0 #C9971A;cursor:pointer}
+.install[hidden]{display:none}
+#installBox .btn{margin-top:8px;border:0;border-radius:10px;background:#F6C12E;color:#0F1A2E;font:700 14px system-ui,sans-serif;padding:10px 14px;cursor:pointer}
 h1{font-size:18px;margin:0 0 2px}
 .sub{color:var(--mut);font-size:12.5px}
 .tabs{display:flex;gap:6px;padding:0 16px 10px;flex-wrap:wrap}
@@ -61,8 +70,9 @@ h3{font-size:14px;margin:14px 0 6px}
 </head>
 <body>
 <header>
-  <h1>Confluence Flow Lab — Order Block × Order Flow × Volume Profile</h1>
+  <div class="brand"><img src="icons/icon-192.png" alt=""><div><h1>Confluence</h1><div class="tag">Order Block × Order Flow × Volume Profile</div></div></div>
   <div class="sub" id="sub"></div>
+  <button class="install" type="button" id="installTop" hidden>⬇ Cài app xuống điện thoại</button>
 </header>
 <div class="tabs"><button class="tab on" data-t="chart">Biểu đồ</button><button class="tab" data-t="res">Kết quả đo</button><button class="tab" data-t="how">Cách đọc</button></div>
 
@@ -102,7 +112,11 @@ h3{font-size:14px;margin:14px 0 6px}
 </div>
 
 <div id="v-res" class="hide" style="padding:0 16px 24px"></div>
-<div id="v-how" class="hide" style="padding:0 16px 24px"></div>
+<div id="v-how" class="hide" style="padding:0 16px 24px">
+  <div class="card" id="installBox"><h2>Cài app xuống điện thoại</h2><div class="sub" id="installState">Đang kiểm tra…</div>
+    <button class="btn" type="button" id="installBtn" hidden>Cài app</button></div>
+  <div id="how-body"></div>
+</div>
 
 <script>
 const D = /*__DATA__*/null;
@@ -546,7 +560,7 @@ function renderRes() {
 
 /* ---------------------------------------------------------------- cách đọc */
 function renderHow() {
-  $('#v-how').innerHTML = `<div class="card"><h2>Mô hình 3 tầng "Vị trí – Dòng tiền – Kích hoạt"</h2>
+  $('#how-body').innerHTML = `<div class="card"><h2>Mô hình 3 tầng "Vị trí – Dòng tiền – Kích hoạt"</h2>
   <p><b>V — Vị trí.</b> Giá chạm vùng cầu/cung. Vùng cầu = OB tăng còn sống, POC, VAL; vùng cung = OB giảm, POC, VAH (profile {{VPW}} phiên tới hôm trước). <b>P = 1</b> khi OB chồng mức VP (dung sai 0,25 ATR) hoặc mức VP nằm trong/sát OB cùng phía — "vùng được hai nguồn xác nhận".</p>
   <p><b>F — Dòng tiền.</b> Mua: delta nến 15' ≥ +20 % KL, hoặc giá chạm đáy phiên mà CVD cá mập phiên còn dương. Bán: hấp thụ mua (delta ≥ +30 % nhưng đóng nửa dưới nến) hoặc giá chạm đỉnh phiên mà CVD cá mập âm. Cá mập = lệnh ≥ 500 tr + cá mập ẩn của app price-path.</p>
   <p><b>K — Kích hoạt.</b> Mua: nến xanh đóng cửa ≥ đáy vùng sau khi bóng chạm vùng. Bán: nến đỏ đóng cửa ≤ đỉnh vùng sau khi bóng chạm vùng.</p>
@@ -593,6 +607,35 @@ const refit = () => { const w = $('#dscroll').clientWidth; if (w && Math.abs(w -
 requestAnimationFrame(() => requestAnimationFrame(refit)); window.addEventListener('load', refit);
 let rzT; window.addEventListener('resize', () => { clearTimeout(rzT); rzT = setTimeout(refit, 150); });
 { const q = new URLSearchParams(location.search).get('tab'); if (q) { const b = document.querySelector('.tab[data-t="' + q + '"]'); if (b) b.click(); } }
+
+// ---------------------------------------------------------------- cài app (khuôn kiem-mua/docs/app.js, 27/09/2026)
+// Chrome/Android bắn beforeinstallprompt khi trang đủ điều kiện cài → giữ lại, hiện nút vàng, bấm thì mở hộp cài thật.
+if ('serviceWorker' in navigator) navigator.serviceWorker.register('sw.js').catch(() => {});
+{
+  let deferred = null;
+  const installed = () => matchMedia('(display-mode: standalone)').matches || navigator.standalone === true;
+  const ui = () => {
+    const st = $('#installState');
+    if (installed()) { $('#installTop').hidden = true; $('#installBtn').hidden = true; st.textContent = 'Đã cài: đang mở Confluence như một app.'; return; }
+    $('#installTop').hidden = !deferred; $('#installBtn').hidden = !deferred;
+    const ios = /iphone|ipad|ipod/i.test(navigator.userAgent);
+    st.innerHTML = deferred ? 'Bấm nút bên dưới (hoặc nút vàng ở đầu trang), rồi chọn <b>Cài đặt</b>.'
+      : ios ? 'Trên iPhone: mở bằng Safari → nút <b>Chia sẻ</b> → <b>Thêm vào MH chính</b>.'
+      : 'Chưa thấy nút cài? Mở bằng <b>Chrome</b>, tải lại trang một lần, đợi vài giây. Hoặc bấm <b>⋮</b> → <b>Cài đặt ứng dụng</b> (hoặc <b>Thêm vào màn hình chính</b>). Đã lỡ tạo lối tắt thì xoá lối tắt đó trước.';
+  };
+  addEventListener('beforeinstallprompt', e => { e.preventDefault(); deferred = e; ui(); });
+  addEventListener('appinstalled', () => { deferred = null; ui(); });
+  const doInstall = async () => {
+    if (!deferred) return ui();
+    deferred.prompt();
+    await deferred.userChoice.catch(() => null);
+    deferred = null;
+    ui();
+  };
+  $('#installTop').onclick = doInstall;
+  $('#installBtn').onclick = doInstall;
+  ui();
+}
 </script>
 </body>
 </html>

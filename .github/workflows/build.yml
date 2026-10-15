@@ -11,6 +11,10 @@ on:
     - cron: "0 10 * * 1-5"
     - cron: "0,30 12-15 * * 1-5"
     - cron: "0 16 * * 1-5"
+  # đẩy code/giao diện mới → dựng lại ngay (--force). Bot chỉ commit status.json nên không tự kích hoạt.
+  push:
+    branches: [main]
+    paths: ["web/**", "src/**", "run.py", "scripts/**", "requirements.txt", ".github/workflows/build.yml"]
   workflow_dispatch:
     inputs:
       force:
@@ -59,7 +63,7 @@ jobs:
         env:
           GITHUB_TOKEN: ${{ github.token }}
         run: |
-          if [ "${{ github.event.inputs.force }}" = "true" ]; then FORCE=--force; else FORCE=; fi
+          if [ "${{ github.event.inputs.force }}" = "true" ] || [ "${{ github.event_name }}" = "push" ]; then FORCE=--force; else FORCE=; fi
           python run.py $FORCE
 
       # chỉ lưu cache mới khi có thêm tar/cá mập ẩn (khoá = phiên tick cuối + số tệp algo)

@@ -1,4 +1,4 @@
-# Confluence Flow — OB × Order Flow × Volume Profile (bản chạy online)
+# Confluence — OB × Order Flow × Volume Profile (bản chạy online)
 
 Trang: https://tamabc279-stack.github.io/confluence-flow/
 
@@ -38,3 +38,11 @@ Khác lab: đường dẫn tương đối; đầu trang ghi giờ dựng và "ti
 - Repo public: Actions và Pages miễn phí. Bật Pages: Settings → Pages → Source = **GitHub Actions**.
 
 Chạy trên máy: `"c:\Claude code\price-path\venv\Scripts\python" run.py --force` → mở `site/index.html`.
+
+## Cài lên điện thoại (PWA "Confluence")
+- Logo "Ba dòng chảy hợp lại": xanh dương (OB/cầu), tím (Volume Profile), vàng (dòng tiền) nhập vào một chấm sáng. Vector ở
+  `web/icons/logo.svg`; PNG vẽ bằng `scripts/make_icons.py` (cần Pillow, chạy trên máy dev rồi commit PNG):
+  `"c:\Claude code\candle-radar\venv\Scripts\python" scripts\make_icons.py`.
+- `web/` (manifest, sw.js, icons) được `run.py` chép vào `site/` cạnh trang. Nút vàng "⬇ Cài app xuống điện thoại" ở đầu trang
+  (chỉ hiện khi Chrome cho cài); tab Cách đọc có hộp "Cài app" kèm cách cài tay (Chrome ⋮ → Cài đặt ứng dụng; iPhone Safari → Chia sẻ → Thêm vào MH chính).
+- Đẩy code lên `main` (web/, src/, run.py…) → workflow tự dựng lại ngay.

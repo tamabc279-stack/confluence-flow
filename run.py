@@ -13,7 +13,7 @@ Hai lượt mỗi ngày (cách A, người dùng chọn 15/10/2026):
   python run.py            # bình thường (thoát 0 nếu nguồn chưa đủ hoặc đã dựng)
   python run.py --force    # dựng lại dù status.json nói đã dựng
 
-Kết quả: site/index.html (workflow đăng lên Pages) + status.json (workflow commit). Ghi `publish=true` vào GITHUB_OUTPUT khi có trang mới.
+Kết quả: site/ = index.html + web/ (manifest, sw.js, icons; workflow đăng lên Pages) + status.json (workflow commit). Ghi `publish=true` vào GITHUB_OUTPUT khi có trang mới.
 Cổng 0 lệch → thoát 1, không đăng (trang cũ trên Pages giữ nguyên).
 """
 from __future__ import annotations
@@ -221,6 +221,7 @@ def main() -> int:
     step(LAB / "build.py", built)
 
     SITE.mkdir(exist_ok=True)
+    shutil.copytree(ROOT / "web", SITE, dirs_exist_ok=True)     # manifest, sw.js, icons → cài được như app (PWA "Confluence")
     shutil.copyfile(LAB / "index.html", SITE / "index.html")
     alerts = json.loads((LAB / "data" / "daily_alerts.json").read_text(encoding="utf-8"))
     tick = json.loads((LAB / "data" / "tick.json").read_text(encoding="utf-8"))
