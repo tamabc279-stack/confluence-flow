@@ -40,6 +40,7 @@ h1{font-size:18px;margin:0 0 2px}
 .pos{position:relative;flex:1;min-width:0}.scroll{overflow-x:auto}#dscroll{overflow-x:hidden}
 #dprof,#tprof{flex:0 0 124px;width:124px}
 .cap span.r{left:auto;right:8px}
+@media(max-width:700px){.cap span{white-space:nowrap;max-width:calc(100% - 12px);overflow:hidden;text-overflow:ellipsis}}
 .cap span{position:absolute;left:6px;font-size:10.5px;color:var(--mut);background:var(--card);padding:0 4px;border-radius:3px;pointer-events:none}
 svg{display:block;max-width:none}
 .axis text,.lbl{fill:var(--mut);font-size:10.5px}
@@ -190,7 +191,12 @@ function tag(g, x, yEdge, up, text, solid, isBuy, fs, tipText, star) {
 /* ---------------------------------------------------------------- nến ngày */
 function renderDaily() {
   const d = D.sym[SYM].d, bars = d.bars, n = bars.length;
-  const PL = 6, hostW = $('#dscroll').clientWidth || 900, BW = Math.max(6, Math.floor((hostW - PL - 14) / n)), W = PL + n * BW + 14, hP = 290, top = 10, vTop = 308, vH = 46, dTop = 366, dH = 70, cTop = dTop + dH + 32, cH = 110, H = cTop + cH + 22;
+  // Màn hình hẹp (điện thoại, 15/10/2026): cột profile 124 px chiếm 1/3 bề rộng và để trống bên phải các khung KL/Delta/CVD →
+  // ẩn cột, vẽ profile thành lớp phủ mờ ở mép phải khung giá (kiểu TradingView), nến + các khung dưới trải hết bề rộng; nới khoảng cách chú thích.
+  const narrow = $('#dscroll').closest('.chart').clientWidth < 640;
+  $('#dprof').style.display = narrow ? 'none' : '';
+  const AX = narrow ? 34 : 0, G = narrow ? 14 : 0;
+  const PL = 6, hostW = $('#dscroll').clientWidth || 900, BW = Math.max(6, Math.floor((hostW - PL - 14 - AX) / n)), W = narrow ? hostW : PL + n * BW + 14, hP = 290, top = 10, vTop = 308 + G, vH = 46, dTop = 366 + 2 * G, dH = 70, cTop = dTop + dH + 32 + 2 * G, cH = 110, H = cTop + cH + 22;
   const lo0 = Math.min(...bars.map(b => b[3])), hi0 = Math.max(...bars.map(b => b[2])), pad = (hi0 - lo0) * .05;
   const lo = lo0 - pad, hi = hi0 + pad, y = lin(hi, lo, top, top + hP), x = i => PL + i * BW + BW / 2;
   const host = $('#dscroll'); host.innerHTML = ''; window.__dw = hostW;
@@ -226,6 +232,17 @@ function renderDaily() {
     const r = el('rect', {x: x(i) - BW / 2, y: top, width: BW, height: H - top, fill: 'transparent'}, svg);
     tip(r, `${b[0]}  O ${fx(b[1])} H ${fx(b[2])} L ${fx(b[3])} C ${fx(b[4])}\nKL ${big(b[5])}` + (b[8] ? ` · TB20 ${big(b[8])} · KL/TB20 = ${(b[5] / b[8]).toFixed(2)}×` : '') + (b[6] != null ? `\nDelta ${big(b[6])} · cá mập ${big(b[7])}` : ''));
   });
+  if (narrow) {                                   // profile ngày dạng lớp phủ: thanh mọc từ mép phải vào trong, nhãn giá ở mép phải
+    const pv = d.vp, mx = Math.max(...pv.v) || 1, bh = Math.max(2, Math.abs(y(pv.p[0]) - y(pv.p[1])) - 1), xr = W - AX;
+    const gP = el('g', {'clip-path': 'url(#dc)', 'pointer-events': 'none'}, svg);
+    pv.p.forEach((pp, i) => {
+      const w = pv.v[i] / mx * Math.min(90, W * .26), inVA = pp >= pv.val && pp <= pv.vah;
+      el('rect', {x: xr - w, y: y(pp) - bh / 2, width: w, height: bh, fill: inVA ? css('--vp') : css('--mut'), opacity: inVA ? .3 : .2}, gP);
+    });
+    ticks(lo, hi, 6).forEach(v => el('text', {x: W - 2, y: y(v) + 3, 'text-anchor': 'end', class: 'lbl', style: halo()}, svg, fx(v)));
+    [['POC', pv.poc], ['VAH', pv.vah], ['VAL', pv.val]].forEach(([nm, v]) =>
+      el('text', {x: xr - 2, y: y(v) - 3, 'text-anchor': 'end', class: 'lbl', style: halo() + `fill:${css('--vp')};font-weight:600`}, svg, nm + ' ' + fx(v)));
+  }
   svg.appendChild(gLab);
   if ($('#d_mk').checked) d.marks.forEach(m => {
     const ok = m.st === 'alert';
@@ -261,6 +278,8 @@ function renderDaily() {
   el('line', {x1: 0, x2: W, y1: cTop - 8, y2: cTop - 8, stroke: css('--line')}, svg);
   if (cpts.length >= 2) {
     const nP = cpts.length, cx = j => PL + 26 + j * (W - PL - 52) / (nP - 1);
+    const stp = (W - PL - 52) / (nP - 1), lStep = Math.max(1, Math.ceil(34 / stp)), dStep = Math.max(1, Math.ceil(36 / stp));
+    const showL = j => (nP - 1 - j) % lStep === 0, showD = j => (nP - 1 - j) % dStep === 0;   // đếm ngược từ điểm cuối → luôn có nhãn phiên mới nhất
     const wv = cpts.map(p => bars[p.i][10] != null ? bars[p.i][10] / 1e6 : null).filter(v => v != null);
     const vs = cpts.map(p => p.v).concat(wv), vmn = Math.min(...vs), vmx2 = Math.max(...vs), pdv = (vmx2 - vmn || 1) * .22;
     const cy2 = lin(vmx2 + pdv, vmn - pdv, cTop + 22, cTop + cH - 20);
@@ -274,8 +293,8 @@ function renderDaily() {
       tip(dot, `${p.d} · CVD ngày ${fm(p.v)} tr cp (cộng dồn delta từ 18/09) · giá đóng cửa ${fx(p.c)}`);
       // nhãn vàng và nhãn tím nằm ở HAI PHÍA đối diện: đường nằm trên → nhãn phía trên chấm, đường nằm dưới → nhãn phía dưới chấm
       const wv = bars[p.i][10] != null ? bars[p.i][10] / 1e6 : null, goldBelow = wv != null ? pyv >= cy2(wv) : Math.abs(py(p.c) - (pyv + 14)) > 10;
-      el('text', {x: px, y: goldBelow ? pyv + 16 : pyv - 9, 'text-anchor': 'middle', style: halo() + `font-size:${(W - PL - 52) / (nP - 1) < 34 ? 9 : 11}px;font-weight:700;fill:${css('--cvdl')}`}, svg, fm(p.v));
-      if (nP <= 20 || j % 2 === 0 || j === nP - 1) el('text', {x: px, y: cTop + cH + 11, 'text-anchor': 'middle', class: 'lbl'}, svg, sh(p.d));
+      if (showL(j)) el('text', {x: px, y: goldBelow ? pyv + 16 : pyv - 9, 'text-anchor': 'middle', style: halo() + `font-size:${stp < 34 && lStep === 1 ? 9 : 11}px;font-weight:700;fill:${css('--cvdl')}`}, svg, fm(p.v));
+      if (showD(j)) el('text', {x: px, y: cTop + cH + 11, 'text-anchor': 'middle', class: 'lbl'}, svg, sh(p.d));
     });
     // đường CVD CÁ MẬP (tím, nét liền, CÙNG thang với CVD tổng): cộng dồn delta lệnh lớn ≥ 500 tr + cá mập ẩn (ẩn chỉ có phiên 25/09 và từ 30/09)
     const wp = cpts.map((p, j) => ({j, d: p.d, v: bars[p.i][10] != null ? bars[p.i][10] / 1e6 : null, hid: bars[p.i][11]})).filter(q => q.v != null);
@@ -287,18 +306,22 @@ function renderDaily() {
         tip(dot, `${q.d} · CVD cá mập ${fm(q.v)} tr cp (cộng dồn từ 18/09) · ${q.hid ? 'lệnh lớn ≥ 500 tr + cá mập ẩn' : 'CHỈ lệnh lớn (phiên này chưa có dữ liệu cá mập ẩn)'}`);
       });
       wp.forEach(q => {                                 // nhãn số CÁ MẬP (tím) cho mọi điểm, phía đối diện nhãn vàng của cùng ngày
+        if (!showL(q.j)) return;
         const yP = wy(q.v), yG = cy2(cpts[q.j].v), up = yP <= yG;
-        el('text', {x: cx(q.j), y: up ? yP - 9 : yP + 16, 'text-anchor': 'middle', style: halo() + `font-size:${(W - PL - 52) / (nP - 1) < 34 ? 9 : 11}px;font-weight:700;fill:${css('--wl')}`}, svg, fm(q.v));
+        el('text', {x: cx(q.j), y: up ? yP - 9 : yP + 16, 'text-anchor': 'middle', style: halo() + `font-size:${stp < 34 && lStep === 1 ? 9 : 11}px;font-weight:700;fill:${css('--wl')}`}, svg, fm(q.v));
       });
     }
   } else el('text', {x: W / 2, y: cTop + cH / 2, 'text-anchor': 'middle', class: 'lbl'}, svg, 'Chưa có delta ngày thật cho mã này (từ 18/09/2026).');
-  [0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11].forEach(k => {
-    const i = Math.round(k * (n - 1) / 11);
+  const nTk = Math.max(3, Math.min(12, Math.floor(W / 52)));
+  Array.from({length: nTk}, (_, k) => k).forEach(k => {
+    const i = Math.round(k * (n - 1) / (nTk - 1));
     el('text', {x: x(i), y: dTop + dH + 14, 'text-anchor': 'middle', class: 'lbl'}, svg, sh(bars[i][0]));   // trục ngày của nến, nằm dưới khung Delta
   });
-  $('#dcap').innerHTML = `<span style="top:${vTop}px">KL (màu theo delta khi có tick) · đường đậm = TB KL 20 phiên trước</span><span style="top:${dTop}px">Delta ngày (mua−bán chủ động, tick thật từ 18/09) · vạch vàng = cá mập</span>` +
+  if (narrow) $('#dcap').innerHTML = `<span style="top:${vTop - 14}px">KL · đường đậm = TB20 phiên trước</span><span style="top:${dTop - 14}px">Delta ngày (tick thật từ 18/09) · vạch vàng = cá mập</span>` +
+    `<span style="top:${cTop - 30}px">CVD ngày (triệu cp, cộng dồn từ 18/09)</span><span style="top:${cTop - 16}px"><i class="ln" style="border-color:var(--gold)"></i>CVD · <i class="ln" style="border-color:var(--wl)"></i>cá mập · <i class="ln" style="border-color:var(--ink);border-top-style:dashed"></i>giá</span>`;
+  else $('#dcap').innerHTML = `<span style="top:${vTop}px">KL (màu theo delta khi có tick) · đường đậm = TB KL 20 phiên trước</span><span style="top:${dTop}px">Delta ngày (mua−bán chủ động, tick thật từ 18/09) · vạch vàng = cá mập</span>` +
     `<span style="top:${cTop - 4}px">CVD ngày (triệu cp, cộng dồn từ 18/09)</span><span class="r" style="top:${cTop - 4}px"><i class="ln" style="border-color:var(--gold)"></i>CVD (vàng) · <i class="ln" style="border-color:var(--wl)"></i>CVD cá mập (tím; cùng thang với CVD vàng) · <i class="ln" style="border-color:var(--ink);border-top-style:dashed"></i>giá đóng cửa (mỗi đường một thang riêng)</span><span class="r" style="top:${cTop + 10}px;font-size:10px">tím = lệnh ≥ 500 tr + cá mập ẩn (ẩn chỉ có phiên 25/09 và từ 30/09)</span>`;
-  profileCol($('#dprof'), d.vp, y, H, lo, hi, '{{VPW}} phiên ngày');
+  if (!narrow) profileCol($('#dprof'), d.vp, y, H, lo, hi, '{{VPW}} phiên ngày');
   host.scrollLeft = host.scrollWidth;
   $('#dleg').innerHTML = `<span><i class="zb bv"></i>OB tăng ✓ hợp lệ</span><span><i class="zb bn"></i>OB tăng thường</span>
    <span><i class="zb sv"></i>OB giảm ✓ hợp lệ</span><span><i class="zb sn"></i>OB giảm thường</span><span><i class="zb br"></i>đã thủng (ẩn, bật ô để xem)</span>
