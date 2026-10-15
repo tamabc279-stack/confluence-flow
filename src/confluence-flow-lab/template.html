@@ -29,6 +29,8 @@ h1{font-size:18px;margin:0 0 2px}
 .side{background:var(--card);border:1px solid var(--line);border-radius:10px;max-height:78vh;overflow:auto}
 .side .r{display:grid;grid-template-columns:52px 1fr auto;gap:6px;align-items:center;padding:6px 10px;border-bottom:1px solid var(--line);cursor:pointer;font-size:13px}
 .side .r:hover,.side .r.on{background:rgba(47,111,220,.1)}
+.side .more{display:none;width:100%;border:0;background:transparent;color:var(--acc);font:600 13.5px system-ui,sans-serif;padding:10px;cursor:pointer}
+@media(max-width:860px){.side{max-height:none}.side .more{display:block}.side:not(.open) .r:nth-child(n+6):not(.on){display:none}}
 .pill{display:inline-block;min-width:22px;text-align:center;border-radius:10px;padding:0 6px;font-size:11.5px;font-weight:600;background:var(--line);color:var(--mut)}
 .pill.s2{background:transparent;box-shadow:inset 0 0 0 1.5px var(--mut);color:var(--ink)}.pill.s3{background:var(--ink);color:var(--card)}
 .pill.ob{background:transparent;box-shadow:inset 0 0 0 1px var(--mut);color:var(--mut)}
@@ -466,14 +468,25 @@ function renderTick() {
 }
 
 /* ---------------------------------------------------------------- danh sách + tóm tắt */
+// Điện thoại (≤ 860 px, 15/10/2026): danh sách chỉ hiện 5 mã đầu (+ mã đang xem), bấm "Xem đủ" để xổ ra; chọn mã xong tự thu gọn.
+let SIDE_OPEN = false;
 function renderSide() {
-  const s = $('#side'); s.innerHTML = '';
+  const s = $('#side'); s.innerHTML = ''; s.classList.toggle('open', SIDE_OPEN);
   D.scan.forEach(r => {
     const row = document.createElement('div'); row.className = 'r' + (r.s === SYM ? ' on' : '');
     row.innerHTML = `<b>${r.s}</b><span class="sub">${fx(r.last)} <span class="${r.chg >= 0 ? 'ok' : 'bad'}">${pc(r.chg, 1)}</span></span><span>${r.valid ? `<span class="pill ob" title="OB hợp lệ còn sống">OB${r.valid}</span> ` : ''}<span class="pill ${r.score >= 3 ? 's3' : r.score == 2 ? 's2' : ''}" title="điểm hợp lưu cao nhất phiên cuối (★ = 3/3)">${r.tick ? (r.score >= 3 ? '★ ' : '') + r.score : '–'}</span></span>`;
-    row.onclick = () => { SYM = r.s; location.hash = r.s; renderAll(); };
+    row.onclick = () => {
+      SYM = r.s; location.hash = r.s;
+      const wasOpen = SIDE_OPEN && matchMedia('(max-width:860px)').matches;
+      SIDE_OPEN = false; renderAll();
+      if (wasOpen) $('#title').scrollIntoView({behavior: 'smooth', block: 'start'});
+    };
     s.appendChild(row);
   });
+  const more = document.createElement('button'); more.type = 'button'; more.className = 'more';
+  more.textContent = SIDE_OPEN ? '▴ Thu gọn danh sách' : `▾ Xem đủ ${D.scan.length} mã`;
+  more.onclick = () => { SIDE_OPEN = !SIDE_OPEN; renderSide(); };
+  s.appendChild(more);
 }
 function renderSummary() {
   const e = D.sym[SYM], d = e.d, last = d.bars[d.bars.length - 1];
