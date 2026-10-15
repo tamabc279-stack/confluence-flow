@@ -1,0 +1,598 @@
+<!doctype html>
+<html lang="vi">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Confluence Flow Lab</title>
+<style>
+:root{--bg:#f6f7f9;--card:#fff;--ink:#161a22;--mut:#6b7380;--line:#e3e6ec;--up:#168a4a;--dn:#d23a3a;--poc:#2f6fdc;--va:#e48a14;--gold:#e0a800;--pv:#7a828f;--cum:#0f9d8a;--buy:#1f6fe0;--sell:#d65f00;--on-buy:#fff;--on-sell:#fff;--vp:#7b4bd1;--star:#8f3fd1;--dot:#ff9f1c;--wl:#8f3fd1;--cvdl:#7a5a00;--acc:#2f6fdc}
+@media (prefers-color-scheme:dark){:root:not([data-theme=light]){--bg:#0f1218;--card:#171b23;--ink:#e8ebf1;--mut:#8b93a1;--line:#2a303b;--up:#35c274;--dn:#ef6a6a;--poc:#6ea2ff;--va:#f2a73b;--gold:#f2c230;--pv:#9aa2b0;--cum:#37c9b4;--buy:#5aa2ff;--sell:#ffa24d;--on-buy:#08203f;--on-sell:#2a1500;--vp:#b08cff;--star:#c79bff;--dot:#ffb15c;--wl:#c79bff;--cvdl:#f5d98a;--acc:#6ea2ff}}
+*{box-sizing:border-box}
+body{margin:0;background:var(--bg);color:var(--ink);font:14px/1.45 system-ui,-apple-system,"Segoe UI",Roboto,sans-serif}
+header{padding:14px 16px 8px}
+h1{font-size:18px;margin:0 0 2px}
+.sub{color:var(--mut);font-size:12.5px}
+.tabs{display:flex;gap:6px;padding:0 16px 10px;flex-wrap:wrap}
+.tab{border:1px solid var(--line);background:var(--card);color:var(--ink);padding:6px 12px;border-radius:8px;cursor:pointer;font:inherit}
+.tab.on{background:var(--acc);border-color:var(--acc);color:#fff}
+.wrap{display:grid;grid-template-columns:230px minmax(0,1fr);gap:12px;padding:0 16px 24px}
+@media(max-width:860px){.wrap{grid-template-columns:minmax(0,1fr)}}
+.side{background:var(--card);border:1px solid var(--line);border-radius:10px;max-height:78vh;overflow:auto}
+.side .r{display:grid;grid-template-columns:52px 1fr auto;gap:6px;align-items:center;padding:6px 10px;border-bottom:1px solid var(--line);cursor:pointer;font-size:13px}
+.side .r:hover,.side .r.on{background:rgba(47,111,220,.1)}
+.pill{display:inline-block;min-width:22px;text-align:center;border-radius:10px;padding:0 6px;font-size:11.5px;font-weight:600;background:var(--line);color:var(--mut)}
+.pill.s2{background:transparent;box-shadow:inset 0 0 0 1.5px var(--mut);color:var(--ink)}.pill.s3{background:var(--ink);color:var(--card)}
+.pill.ob{background:transparent;box-shadow:inset 0 0 0 1px var(--mut);color:var(--mut)}
+.card{background:var(--card);border:1px solid var(--line);border-radius:10px;margin-bottom:12px;padding:10px 12px}
+.card h2{font-size:14.5px;margin:0 0 4px}
+.tg{display:flex;gap:12px;flex-wrap:wrap;font-size:12.5px;color:var(--mut);margin:4px 0 6px}
+.tg label{display:flex;gap:4px;align-items:center;cursor:pointer}
+.chart{display:flex;gap:0;align-items:stretch}
+.pos{position:relative;flex:1;min-width:0}.scroll{overflow-x:auto}#dscroll{overflow-x:hidden}
+#dprof,#tprof{flex:0 0 124px;width:124px}
+.cap span.r{left:auto;right:8px}
+.cap span{position:absolute;left:6px;font-size:10.5px;color:var(--mut);background:var(--card);padding:0 4px;border-radius:3px;pointer-events:none}
+svg{display:block;max-width:none}
+.axis text,.lbl{fill:var(--mut);font-size:10.5px}
+table{border-collapse:collapse;width:100%;font-size:12.5px}
+th,td{padding:5px 8px;border-bottom:1px solid var(--line);text-align:right;white-space:nowrap}
+th:first-child,td:first-child{text-align:left}
+th{color:var(--mut);font-weight:600}
+.ok{color:var(--up);font-weight:600}.bad{color:var(--dn)}
+.note{background:rgba(224,168,0,.12);border-left:3px solid var(--gold);padding:8px 10px;border-radius:6px;margin:8px 0;font-size:13px}
+.leg{display:flex;gap:14px;flex-wrap:wrap;font-size:12px;color:var(--mut)}
+.sw{display:inline-block;width:12px;height:10px;vertical-align:-1px;margin-right:4px;border-radius:2px}
+.hide{display:none}
+.tagc{display:inline-block;border-radius:5px;padding:0 6px;font-size:11px;font-weight:700;line-height:16px;border:1.5px solid;vertical-align:1px}
+.tagc.buy{border-color:var(--buy)}.tagc.sell{border-color:var(--sell)}
+.tagc.buy.solid{background:var(--buy);color:var(--on-buy)}.tagc.sell.solid{background:var(--sell);color:var(--on-sell)}
+.tagc.buy.out{color:var(--buy);background:var(--card)}.tagc.sell.out{color:var(--sell);background:var(--card)}
+.zb{display:inline-block;width:18px;height:11px;border-radius:2px;vertical-align:-1px;margin-right:4px;border:1px solid var(--mut)}
+.zb.bv{background:color-mix(in srgb,var(--buy) 24%,transparent);border:2px solid var(--buy)}.zb.bn{background:color-mix(in srgb,var(--buy) 8%,transparent);border:1px solid var(--buy)}
+.zb.sv{background:color-mix(in srgb,var(--sell) 24%,transparent);border:2px solid var(--sell)}.zb.sn{background:color-mix(in srgb,var(--sell) 8%,transparent);border:1px solid var(--sell)}
+.zb.br{background:transparent;border:1px dashed var(--mut)}
+.ln{display:inline-block;width:18px;height:0;vertical-align:3px;margin-right:4px;border-top:2px solid}
+.dot{display:inline-block;width:8px;height:8px;border-radius:50%;background:var(--dot);border:1px solid #000;vertical-align:0;margin-right:4px}
+.leg{row-gap:5px}
+.starb{display:inline-block;width:16px;height:16px;line-height:16px;text-align:center;border-radius:50%;background:var(--star);color:#fff;font-size:10px;font-weight:700;border:1.5px solid var(--card);margin-left:-5px;vertical-align:8px}
+.symt td{padding:6px 8px;vertical-align:middle}.symt td:first-child{white-space:nowrap}.symt td:last-child{text-align:left;white-space:normal}
+h3{font-size:14px;margin:14px 0 6px}
+</style>
+</head>
+<body>
+<header>
+  <h1>Confluence Flow Lab — Order Block × Order Flow × Volume Profile</h1>
+  <div class="sub" id="sub"></div>
+</header>
+<div class="tabs"><button class="tab on" data-t="chart">Biểu đồ</button><button class="tab" data-t="res">Kết quả đo</button><button class="tab" data-t="how">Cách đọc</button></div>
+
+<div id="v-chart" class="wrap">
+  <div class="side" id="side"></div>
+  <div>
+    <div class="card"><h2 id="title"></h2><div id="summary" class="sub"></div></div>
+    <div class="card">
+      <h2>Nến NGÀY · OB · Volume Profile {{VPW}} phiên · Delta</h2>
+      <div class="tg">
+        <label><input type="checkbox" id="d_ob" checked> Hộp OB</label>
+        <label><input type="checkbox" id="d_vp" checked> POC/VAH/VAL</label>
+        <label><input type="checkbox" id="d_mk" checked> Cảnh báo MUA/BÁN</label>
+        <label><input type="checkbox" id="d_nvp"> cả lần test thiếu POC</label>
+        <label><input type="checkbox" id="d_ma" checked> TB20 khối lượng</label>
+        <label><input type="checkbox" id="d_br"> Hiện OB đã thủng</label>
+      </div>
+      <div class="chart"><div class="pos"><div class="scroll" id="dscroll"></div><div class="cap" id="dcap"></div></div><div id="dprof"></div></div>
+      <div class="leg" id="dleg"></div>
+    </div>
+    <div class="card">
+      <h2>Nến 15' · vùng OB/VP · VWAP · Delta · CVD · điểm hợp lưu</h2>
+      <div class="tg">
+        <label><input type="checkbox" id="t_ob" checked> Hộp OB</label>
+        <label><input type="checkbox" id="t_vp" checked> Mức VP ngày</label>
+        <label><input type="checkbox" id="t_vw" checked> VWAP</label>
+        <label><input type="checkbox" id="t_ev" checked> Thẻ MUA/BÁN (≥2/3 điểm)</label>
+        <label><input type="checkbox" id="t_dot"> mọi lần chạm vùng (chấm cam)</label>
+        <label><input type="checkbox" id="t_dp" checked> Profile từng phiên</label>
+        <label><input type="checkbox" id="t_yd"> Mức hôm qua</label>
+        <label><input type="checkbox" id="t_cu"> Cộng dồn từng ngày</label>
+      </div>
+      <div class="chart"><div class="pos"><div class="scroll" id="tscroll"></div><div class="cap" id="tcap"></div></div><div id="tprof"></div></div>
+      <div class="leg" id="tleg"></div>
+    </div>
+  </div>
+</div>
+
+<div id="v-res" class="hide" style="padding:0 16px 24px"></div>
+<div id="v-how" class="hide" style="padding:0 16px 24px"></div>
+
+<script>
+const D = /*__DATA__*/null;
+const NS = 'http://www.w3.org/2000/svg';
+const $ = s => document.querySelector(s);
+const css = n => getComputedStyle(document.documentElement).getPropertyValue(n).trim();
+const fx = (x, p = 2) => x == null ? '—' : Number(x).toLocaleString('vi-VN', {minimumFractionDigits: p, maximumFractionDigits: p});
+const pc = (x, p = 2) => x == null ? '—' : (x >= 0 ? '+' : '') + (x * 100).toFixed(p) + '%';
+function el(tag, at, parent, text) {
+  const e = document.createElementNS(NS, tag);
+  for (const k in at) e.setAttribute(k, at[k]);
+  if (text != null) e.textContent = text;
+  if (parent) parent.appendChild(e);
+  return e;
+}
+function tip(node, text) { el('title', {}, node, text); }
+function lin(d0, d1, r0, r1) { const k = (r1 - r0) / ((d1 - d0) || 1); return v => r0 + (v - d0) * k; }
+function ticks(lo, hi, n = 6) {
+  const raw = (hi - lo) / n, mag = Math.pow(10, Math.floor(Math.log10(raw))), f = raw / mag;
+  const st = (f < 1.5 ? 1 : f < 3 ? 2 : f < 7 ? 5 : 10) * mag, out = [];
+  for (let v = Math.ceil(lo / st) * st; v <= hi; v += st) out.push(+v.toFixed(6));
+  return out;
+}
+const mm = m => String(Math.floor(m / 60)).padStart(2, '0') + ':' + String(m % 60).padStart(2, '0');
+const sh = d => d.slice(8, 10) + '/' + d.slice(5, 7);
+const big = v => v == null ? '—' : (Math.abs(v) >= 1e6 ? (v / 1e6).toFixed(2) + ' tr' : Math.abs(v) >= 1e3 ? (v / 1e3).toFixed(0) + ' k' : v);
+
+let SYM = (location.hash || '').slice(1) || null;
+
+/* ---------------------------------------------------------------- khung chung */
+function profileCol(host, prof, y, H, lo, hi, title) {
+  host.innerHTML = '';
+  const W = 124, svg = el('svg', {width: W, height: H}, host);
+  const g = el('g', {class: 'axis'}, svg);
+  ticks(lo, hi, 6).forEach(v => el('text', {x: W - 2, y: y(v) + 3, 'text-anchor': 'end'}, g, fx(v)));
+  if (title) el('text', {x: 2, y: 9, class: 'lbl', style: 'font-weight:600'}, svg, title);
+  if (!prof) return;
+  const mx = Math.max(...prof.v) || 1, bh = Math.max(2, Math.abs(y(prof.p[0]) - y(prof.p[1])) - 1);
+  prof.p.forEach((p, i) => {
+    const w = prof.v[i] / mx * 64, inVA = p >= prof.val && p <= prof.vah;
+    el('rect', {x: 4, y: y(p) - bh / 2, width: w, height: bh, fill: inVA ? css('--vp') : css('--mut'), opacity: inVA ? .4 : .28}, svg);
+  });
+  [['POC', prof.poc, css('--vp')], ['VAH', prof.vah, css('--vp')], ['VAL', prof.val, css('--vp')]].forEach(([n, v, c]) => {
+    el('line', {x1: 0, x2: 70, y1: y(v), y2: y(v), stroke: c, 'stroke-width': n === 'POC' ? 2 : 1.2, 'stroke-dasharray': n === 'POC' ? null : '4 2'}, svg);
+    el('text', {x: 72, y: y(v) - 2, class: 'lbl', fill: c, style: 'fill:' + c}, svg, n + ' ' + fx(v));
+  });
+}
+function candle(g, x, bw, y, o, h, l, c) {
+  const up = c >= o, col = up ? css('--up') : css('--dn');
+  el('line', {x1: x, x2: x, y1: y(h), y2: y(l), stroke: col}, g);
+  el('rect', {x: x - bw / 2, y: Math.min(y(o), y(c)), width: bw, height: Math.max(1, Math.abs(y(o) - y(c))), fill: col}, g);
+}
+const halo = () => `paint-order:stroke;stroke:${css('--card')};stroke-width:3px;stroke-linejoin:round;`;
+const hexA = (n, a) => { const h = css(n).replace('#', ''); return `rgba(${parseInt(h.slice(0, 2), 16)},${parseInt(h.slice(2, 4), 16)},${parseInt(h.slice(4, 6), 16)},${a})`; };
+// Thẻ tín hiệu: màu theo HƯỚNG (xanh dương = MUA, cam = BÁN); đặc = mạnh, viền rỗng = yếu; mũi nhọn chỉ vào nến.
+function tag(g, x, yEdge, up, text, solid, isBuy, fs, tipText, star) {
+  const col = css(isBuy ? '--buy' : '--sell'), on = css(isBuy ? '--on-buy' : '--on-sell');
+  const w = Math.round(text.length * fs * 0.62 + 12), h = fs + 7, gap = 3, pt = 5;
+  const yBody = up ? yEdge + gap + pt : yEdge - gap - pt - h;
+  const grp = el('g', {}, g);
+  el('path', {d: up ? `M${x},${yEdge + gap} L${x - 4},${yBody + .5} L${x + 4},${yBody + .5}Z` : `M${x},${yEdge - gap} L${x - 4},${yBody + h - .5} L${x + 4},${yBody + h - .5}Z`, fill: col}, grp);
+  el('rect', {x: x - w / 2, y: yBody, width: w, height: h, rx: 4, fill: solid ? col : css('--card'), stroke: col, 'stroke-width': 1.5}, grp);
+  el('text', {x, y: yBody + h / 2 + fs * .36, 'text-anchor': 'middle', style: `font-size:${fs}px;font-weight:700;fill:${solid ? on : col}`}, grp, text);
+  if (star) {                                      // ★ tím: có thêm delta ngày và/hoặc CVD nửa đầu phiên đạt
+    el('circle', {cx: x + w / 2, cy: yBody, r: 8, fill: css('--star'), stroke: css('--card'), 'stroke-width': 1.5}, grp);
+    el('text', {x: x + w / 2, y: yBody + 3.6, 'text-anchor': 'middle', style: 'font-size:10px;font-weight:700;fill:#fff'}, grp, '★');
+  }
+  if (tipText) tip(grp, tipText);
+}
+
+/* ---------------------------------------------------------------- nến ngày */
+function renderDaily() {
+  const d = D.sym[SYM].d, bars = d.bars, n = bars.length;
+  const PL = 6, hostW = $('#dscroll').clientWidth || 900, BW = Math.max(6, Math.floor((hostW - PL - 14) / n)), W = PL + n * BW + 14, hP = 290, top = 10, vTop = 308, vH = 46, dTop = 366, dH = 70, cTop = dTop + dH + 32, cH = 110, H = cTop + cH + 22;
+  const lo0 = Math.min(...bars.map(b => b[3])), hi0 = Math.max(...bars.map(b => b[2])), pad = (hi0 - lo0) * .05;
+  const lo = lo0 - pad, hi = hi0 + pad, y = lin(hi, lo, top, top + hP), x = i => PL + i * BW + BW / 2;
+  const host = $('#dscroll'); host.innerHTML = ''; window.__dw = hostW;
+  const svg = el('svg', {width: W, height: H}, host);
+  const gA = el('g', {class: 'axis'}, svg);
+  ticks(lo, hi, 6).forEach(v => { el('line', {x1: 0, x2: W, y1: y(v), y2: y(v), stroke: css('--line')}, svg); });
+  const cp = el('clipPath', {id: 'dc'}, svg); el('rect', {x: 0, y: top, width: W, height: hP}, cp);
+  const gZ = el('g', {'clip-path': 'url(#dc)'}, svg), gLab = el('g', {'clip-path': 'url(#dc)'});   // gLab gắn vào svg SAU khi vẽ nến → nhãn nằm trên nến
+  if ($('#d_ob').checked) d.obs.forEach(o => {
+    if (o.broken && !$('#d_br').checked) return;       // OB đã thủng: ẩn mặc định
+    const tk = o.bull ? '--buy' : '--sell', col = css(tk);
+    const x0 = Math.max(0, x(Math.max(o.k, 0)) - BW / 2), x1 = x(Math.min(o.end, n - 1)) + BW / 2, yt = y(o.hi), hh = Math.max(2, y(o.lo) - y(o.hi));
+    const r = el('rect', {x: x0, y: yt, width: Math.max(2, x1 - x0), height: hh,
+      fill: o.broken ? 'none' : hexA(tk, o.valid ? .24 : .08), stroke: o.broken ? css('--mut') : col,
+      'stroke-width': o.valid ? 2 : .8, 'stroke-dasharray': o.broken ? '3 3' : null}, gZ);
+    const nm = `${o.bull ? 'OB tăng' : 'OB giảm'}${o.valid ? ' ✓' : ''} ${fx(o.lo)}–${fx(o.hi)}`;
+    tip(r, nm + `${o.valid ? ' · HỢP LỆ' : ' · thường'}${o.broken ? ' · đã thủng' : ''}`);
+    if (o.valid && !o.broken) {                       // điểm giữa (50 %) của OB hợp lệ: mốc của tiêu chí cảnh báo
+      const ym = y((o.lo + o.hi) / 2), bl = o.lo + D.alerts.cfg.poc_band[0] * (o.hi - o.lo), bh2 = o.lo + D.alerts.cfg.poc_band[1] * (o.hi - o.lo);
+      const bb = el('rect', {x: x0, y: y(bh2), width: Math.max(2, x1 - x0), height: Math.max(1, y(bl) - y(bh2)), fill: hexA(tk, .16)}, gZ);   // dải giữa 25–75 %: POC phải nằm trong đây
+      tip(bb, `Dải giữa OB ${fx(bl)}–${fx(bh2)} (25–75 % chiều cao): POC profile ngày phải nằm trong dải này`);
+      el('line', {x1: x0, x2: x1, y1: ym, y2: ym, stroke: col, 'stroke-width': 1, 'stroke-dasharray': '3 3'}, gZ);
+      if (x1 - x0 >= 70) el('text', {x: x1 - 3, y: ym - 2, class: 'lbl', 'text-anchor': 'end', style: halo() + `fill:${col}`}, gLab, '50 %');
+    }
+    if (x1 - x0 >= 70) el('text', {x: x0 + 3, y: hh >= 15 ? yt + 10 : yt - 3, class: 'lbl', style: halo() + `fill:${o.broken ? css('--mut') : col};font-weight:${o.valid ? 700 : 500}`}, gLab, nm);
+  });
+  if ($('#d_vp').checked) {
+    [['POC', d.vp.poc], ['VAH', d.vp.vah], ['VAL', d.vp.val]].forEach(([nm, v]) =>
+      el('line', {x1: 0, x2: W, y1: y(v), y2: y(v), stroke: css('--vp'), 'stroke-width': nm === 'POC' ? 1.8 : 1.1, 'stroke-dasharray': nm === 'POC' ? null : '5 3', opacity: nm === 'POC' ? .95 : .75}, gZ));
+  }
+  bars.forEach((b, i) => {
+    candle(svg, x(i), BW < 9 ? BW - 2 : BW - 3, y, b[1], b[2], b[3], b[4]);
+    const r = el('rect', {x: x(i) - BW / 2, y: top, width: BW, height: H - top, fill: 'transparent'}, svg);
+    tip(r, `${b[0]}  O ${fx(b[1])} H ${fx(b[2])} L ${fx(b[3])} C ${fx(b[4])}\nKL ${big(b[5])}` + (b[8] ? ` · TB20 ${big(b[8])} · KL/TB20 = ${(b[5] / b[8]).toFixed(2)}×` : '') + (b[6] != null ? `\nDelta ${big(b[6])} · cá mập ${big(b[7])}` : ''));
+  });
+  svg.appendChild(gLab);
+  if ($('#d_mk').checked) d.marks.forEach(m => {
+    const ok = m.st === 'alert';
+    if (!ok && !$('#d_nvp').checked) return;
+    const b = bars[m.i], side = m.bull ? 'MUA' : 'BÁN', cp = D.alerts.cfg.cvd_pct;
+    const pct = v => v == null ? '—' : (v * 100).toFixed(1) + ' %';
+    const yn = v => v === true ? '✓' : v === false ? '✗' : 'thiếu dữ liệu';
+    const txt = `${side}${ok ? ' — CẢNH BÁO (đủ ①②③④)' : ' — chưa đủ: ' + (m.why || '')}${ok && m.star ? '   ★ có dòng tiền' : ''}\n` +
+      `OB ${m.bull ? 'tăng' : 'giảm'} hợp lệ ${fx(m.lo)}–${fx(m.hi)} · điểm giữa ${fx(m.mid)}\n` +
+      `③ Phiên test ${b[0]}: ${m.bull ? 'Low' : 'High'} ${fx(m.px)} · đóng cửa ${fx(m.close)} (${m.bull ? 'Low ≥ giữa, đóng ≥ giữa' : 'High ≤ giữa, đóng ≤ giữa'}) ✓\n` +
+      `④ POC profile ngày {{VPW}} phiên (tới hôm trước) ${m.poc == null ? '—' : fx(m.poc)} — dải giữa OB ${fx(m.band[0])}–${fx(m.band[1])}: ${m.poc_ok ? '✓ trong dải' : '✗ ngoài dải'}\n` +
+      `★ Dòng tiền (chỉ để nhận biết): Delta ngày ${m.delta == null ? '—' : big(m.delta) + ' (' + pct(m.dpct) + ' KL)'} ${yn(m.d_ok)} · ` +
+      `CVD ${m.bull ? 'đáy' : 'đỉnh'} nửa đầu phiên ${m.cvd == null ? '—' : big(m.cvd) + ' (' + pct(m.cpct) + ' KL; ngưỡng ' + (m.bull ? '≤ −' : '≥ +') + (cp * 100).toFixed(0) + ' %)'} ${yn(m.c_ok)}`;
+    tag(svg, x(m.i), m.bull ? y(b[3]) : y(b[2]), m.bull, side, ok, m.bull, 11, txt, ok && m.star);
+  });
+  const showMa = $('#d_ma').checked, vmax = Math.max(...bars.map(b => b[5]), ...(showMa ? bars.map(b => b[8] || 0) : [0])), vy = lin(0, vmax, vTop + vH, vTop);
+  bars.forEach((b, i) => el('rect', {x: x(i) - (BW - 3) / 2, y: vy(b[5]), width: BW - 3, height: vTop + vH - vy(b[5]),
+    fill: b[6] == null ? css('--mut') : b[6] >= 0 ? css('--up') : css('--dn'), opacity: b[6] == null ? .3 : .6}, svg));
+  if (showMa) {                                // đường TB 20 phiên trước, nằm trên các cột KL
+    const pts = bars.map((b, i) => b[8] != null ? x(i) + ',' + vy(b[8]) : null).filter(Boolean);
+    if (pts.length > 1) el('polyline', {points: pts.join(' '), fill: 'none', stroke: css('--ink'), 'stroke-width': 1.7, 'stroke-linejoin': 'round'}, svg);
+  }
+  const dv = bars.map(b => b[6]).filter(v => v != null), dm = Math.max(1, ...dv.map(Math.abs)), dy = lin(-dm, dm, dTop + dH, dTop);
+  el('line', {x1: 0, x2: W, y1: dy(0), y2: dy(0), stroke: css('--line')}, svg);
+  bars.forEach((b, i) => {
+    if (b[6] == null) return;
+    el('rect', {x: x(i) - 3, y: Math.min(dy(0), dy(b[6])), width: 6, height: Math.max(1, Math.abs(dy(b[6]) - dy(0))), fill: b[6] >= 0 ? css('--up') : css('--dn'), opacity: .75}, svg);
+    if (b[7] != null) el('line', {x1: x(i) - 4, x2: x(i) + 4, y1: dy(b[7] / 1), y2: dy(b[7] / 1), stroke: css('--gold'), 'stroke-width': 2}, svg);
+  });
+  // ---- khung CVD NGÀY (giống ảnh mẫu): cộng dồn delta ngày thật từ 18/09 — đường vàng + chấm + nhãn (triệu cp), giá đóng cửa nét đứt
+  // (thang riêng); các điểm (mỗi phiên một điểm) trải đều hết bề rộng khung nên nhãn không đè nhau, ngày ghi dưới từng điểm.
+  const cpts = bars.map((b, i) => b[9] != null ? {i, v: b[9] / 1e6, c: b[4], d: b[0]} : null).filter(Boolean);
+  el('line', {x1: 0, x2: W, y1: cTop - 8, y2: cTop - 8, stroke: css('--line')}, svg);
+  if (cpts.length >= 2) {
+    const nP = cpts.length, cx = j => PL + 26 + j * (W - PL - 52) / (nP - 1);
+    const wv = cpts.map(p => bars[p.i][10] != null ? bars[p.i][10] / 1e6 : null).filter(v => v != null);
+    const vs = cpts.map(p => p.v).concat(wv), vmn = Math.min(...vs), vmx2 = Math.max(...vs), pdv = (vmx2 - vmn || 1) * .22;
+    const cy2 = lin(vmx2 + pdv, vmn - pdv, cTop + 22, cTop + cH - 20);
+    const cs = cpts.map(p => p.c), py = lin(Math.max(...cs), Math.min(...cs), cTop + 28, cTop + cH - 26);
+    el('polyline', {points: cpts.map((p, j) => cx(j) + ',' + py(p.c)).join(' '), fill: 'none', stroke: css('--ink'), 'stroke-width': 1.6, 'stroke-dasharray': '4 3'}, svg);
+    el('polyline', {points: cpts.map((p, j) => cx(j) + ',' + cy2(p.v)).join(' '), fill: 'none', stroke: css('--gold'), 'stroke-width': 2.4, 'stroke-linejoin': 'round'}, svg);
+    const fm = v => { const t = Number(v.toFixed(2)); return (t < 0 ? '−' : '') + String(Math.abs(t)).replace('.', ','); };
+    cpts.forEach((p, j) => {
+      const px = cx(j), pyv = cy2(p.v);
+      const dot = el('circle', {cx: px, cy: pyv, r: 4, fill: css('--gold'), stroke: css('--card'), 'stroke-width': 1.2}, svg);
+      tip(dot, `${p.d} · CVD ngày ${fm(p.v)} tr cp (cộng dồn delta từ 18/09) · giá đóng cửa ${fx(p.c)}`);
+      // nhãn vàng và nhãn tím nằm ở HAI PHÍA đối diện: đường nằm trên → nhãn phía trên chấm, đường nằm dưới → nhãn phía dưới chấm
+      const wv = bars[p.i][10] != null ? bars[p.i][10] / 1e6 : null, goldBelow = wv != null ? pyv >= cy2(wv) : Math.abs(py(p.c) - (pyv + 14)) > 10;
+      el('text', {x: px, y: goldBelow ? pyv + 16 : pyv - 9, 'text-anchor': 'middle', style: halo() + `font-size:${(W - PL - 52) / (nP - 1) < 34 ? 9 : 11}px;font-weight:700;fill:${css('--cvdl')}`}, svg, fm(p.v));
+      if (nP <= 20 || j % 2 === 0 || j === nP - 1) el('text', {x: px, y: cTop + cH + 11, 'text-anchor': 'middle', class: 'lbl'}, svg, sh(p.d));
+    });
+    // đường CVD CÁ MẬP (tím, nét liền, CÙNG thang với CVD tổng): cộng dồn delta lệnh lớn ≥ 500 tr + cá mập ẩn (ẩn chỉ có phiên 25/09 và từ 30/09)
+    const wp = cpts.map((p, j) => ({j, d: p.d, v: bars[p.i][10] != null ? bars[p.i][10] / 1e6 : null, hid: bars[p.i][11]})).filter(q => q.v != null);
+    if (wp.length >= 2) {
+      const wy = cy2;                                   // cùng thang với CVD tổng
+      el('polyline', {points: wp.map(q => cx(q.j) + ',' + wy(q.v)).join(' '), fill: 'none', stroke: css('--wl'), 'stroke-width': 2.4, 'stroke-linejoin': 'round'}, svg);
+      wp.forEach(q => {
+        const dot = el('circle', {cx: cx(q.j), cy: wy(q.v), r: 3, fill: css('--wl'), stroke: css('--card'), 'stroke-width': 1}, svg);
+        tip(dot, `${q.d} · CVD cá mập ${fm(q.v)} tr cp (cộng dồn từ 18/09) · ${q.hid ? 'lệnh lớn ≥ 500 tr + cá mập ẩn' : 'CHỈ lệnh lớn (phiên này chưa có dữ liệu cá mập ẩn)'}`);
+      });
+      wp.forEach(q => {                                 // nhãn số CÁ MẬP (tím) cho mọi điểm, phía đối diện nhãn vàng của cùng ngày
+        const yP = wy(q.v), yG = cy2(cpts[q.j].v), up = yP <= yG;
+        el('text', {x: cx(q.j), y: up ? yP - 9 : yP + 16, 'text-anchor': 'middle', style: halo() + `font-size:${(W - PL - 52) / (nP - 1) < 34 ? 9 : 11}px;font-weight:700;fill:${css('--wl')}`}, svg, fm(q.v));
+      });
+    }
+  } else el('text', {x: W / 2, y: cTop + cH / 2, 'text-anchor': 'middle', class: 'lbl'}, svg, 'Chưa có delta ngày thật cho mã này (từ 18/09/2026).');
+  [0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11].forEach(k => {
+    const i = Math.round(k * (n - 1) / 11);
+    el('text', {x: x(i), y: dTop + dH + 14, 'text-anchor': 'middle', class: 'lbl'}, svg, sh(bars[i][0]));   // trục ngày của nến, nằm dưới khung Delta
+  });
+  $('#dcap').innerHTML = `<span style="top:${vTop}px">KL (màu theo delta khi có tick) · đường đậm = TB KL 20 phiên trước</span><span style="top:${dTop}px">Delta ngày (mua−bán chủ động, tick thật từ 18/09) · vạch vàng = cá mập</span>` +
+    `<span style="top:${cTop - 4}px">CVD ngày (triệu cp, cộng dồn từ 18/09)</span><span class="r" style="top:${cTop - 4}px"><i class="ln" style="border-color:var(--gold)"></i>CVD (vàng) · <i class="ln" style="border-color:var(--wl)"></i>CVD cá mập (tím; cùng thang với CVD vàng) · <i class="ln" style="border-color:var(--ink);border-top-style:dashed"></i>giá đóng cửa (mỗi đường một thang riêng)</span><span class="r" style="top:${cTop + 10}px;font-size:10px">tím = lệnh ≥ 500 tr + cá mập ẩn (ẩn chỉ có phiên 25/09 và từ 30/09)</span>`;
+  profileCol($('#dprof'), d.vp, y, H, lo, hi, '{{VPW}} phiên ngày');
+  host.scrollLeft = host.scrollWidth;
+  $('#dleg').innerHTML = `<span><i class="zb bv"></i>OB tăng ✓ hợp lệ</span><span><i class="zb bn"></i>OB tăng thường</span>
+   <span><i class="zb sv"></i>OB giảm ✓ hợp lệ</span><span><i class="zb sn"></i>OB giảm thường</span><span><i class="zb br"></i>đã thủng (ẩn, bật ô để xem)</span>
+   <span><i class="ln" style="border-color:var(--buy);border-top-style:dashed"></i>50 % của OB hợp lệ · dải tô đậm = giữa 25–75 % (POC phải nằm trong)</span>
+   <span><b class="tagc buy solid">MUA</b> <b class="tagc sell solid">BÁN</b> CẢNH BÁO = đủ ①②③④ (OB hợp lệ còn sống + lần test đầu + chỉ vào nửa OB + POC trong dải giữa)</span>
+   <span><b class="tagc buy solid">MUA</b><b class="starb">★</b> ★ tím = có thêm delta ngày và/hoặc CVD nửa đầu phiên đạt</span>
+   <span><b class="tagc buy out">MUA</b> <b class="tagc sell out">BÁN</b> test OB hợp lệ nhưng POC ngoài dải (bật ô "cả lần test thiếu POC")</span>
+   <span><i class="ln" style="border-color:var(--vp)"></i>POC · <i class="ln" style="border-color:var(--vp);border-top-style:dashed"></i>VAH/VAL</span><span><i class="ln" style="border-color:var(--ink)"></i>TB20 khối lượng</span>
+   <span style="flex-basis:100%"><i style="display:inline-block;width:16px;height:4px;background:var(--gold);vertical-align:middle;margin-right:4px"></i><b>Đọc vạch vàng (ô Delta)</b> = ròng lệnh lớn của cá mập, cùng thang với cột: gần đầu cột → cá mập tạo ra phần lớn delta · gần đường 0 → delta từ lệnh nhỏ, cá mập đứng ngoài · ngược phía cột → cá mập đi ngược dòng (cột đỏ, vạch trên 0 = hấp thụ bán)</span>`;
+}
+
+/* ---------------------------------------------------------------- nến 15' */
+function renderTick() {
+  const t = D.sym[SYM].t, host = $('#tscroll');
+  if (!t) { host.innerHTML = '<div class="sub" style="padding:20px">Mã này không có tick thật trong ' + D.meta.tick_days.length + ' phiên (hoặc thiếu chiều mua/bán).</div>'; $('#tprof').innerHTML = ''; $('#tleg').innerHTML = ''; return; }
+  const showDp = $('#t_dp').checked, PW = 52, bars = t.bars, BW = 12, GAP = showDp ? 76 : 22, PL = 6;
+  const xs = []; let cur = PL, lastDay = -1; const dayX = {};
+  bars.forEach((b, i) => {
+    if (b[0] !== lastDay) { if (lastDay >= 0) cur += GAP; dayX[b[0]] = [cur, cur]; lastDay = b[0]; }
+    xs.push(cur + BW / 2); cur += BW; dayX[b[0]][1] = cur;
+  });
+  const W = cur + 14 + (showDp ? PW + 10 : 0), top = 18, hP = 280, vTop = 316, vH = 70, cTop = 396, cH = 70, H = cTop + cH + 6;
+  let lo = Math.min(...bars.map(b => b[4])), hi = Math.max(...bars.map(b => b[3]));
+  const pad = (hi - lo) * .06; lo -= pad; hi += pad;
+  const y = lin(hi, lo, top, top + hP);
+  host.innerHTML = '';
+  const svg = el('svg', {width: W, height: H}, host);
+  ticks(lo, hi, 6).forEach(v => el('line', {x1: 0, x2: W, y1: y(v), y2: y(v), stroke: css('--line')}, svg));
+  const cp = el('clipPath', {id: 'tc'}, svg); el('rect', {x: 0, y: top, width: W, height: hP}, cp);
+  const gZ = el('g', {'clip-path': 'url(#tc)'}, svg), gLab = el('g', {'clip-path': 'url(#tc)'});
+  t.days.forEach((d, di) => {
+    const [x0, x1] = dayX[di] || [0, 0];
+    el('text', {x: x0, y: 11, class: 'lbl'}, svg, sh(d));
+    el('line', {x1: x0 - GAP / 2, x2: x0 - GAP / 2, y1: top, y2: H - 4, stroke: css('--line'), 'stroke-dasharray': '2 3'}, svg);
+    let lastLy = -99;
+    (t.zones[di] || []).forEach(z => {
+      if (z.t === 'OB' && $('#t_ob').checked) {
+        const up = z.role === 'buy', tk = up ? '--buy' : '--sell', col = css(tk), yt = y(z.hi), hh = Math.max(2, y(z.lo) - y(z.hi));
+        const nm = `${up ? 'OB tăng' : 'OB giảm'}${z.valid ? ' ✓' : ''} ${fx(z.lo)}–${fx(z.hi)}`;
+        const r = el('rect', {x: x0, y: yt, width: x1 - x0, height: hh, fill: hexA(tk, z.valid ? .22 : .08), stroke: col, 'stroke-width': z.valid ? 2 : .8}, gZ);
+        tip(r, nm + `${z.valid ? ' · HỢP LỆ' : ' · thường'}${z.P ? ' · chồng mức VP' : ''}`);
+        if (di === t.days.length - 1) {            // nhãn chữ chỉ ở phiên cuối; lệch xuống nếu trùng nhãn trước
+          let ly = hh >= 15 ? yt + 10 : yt - 3; if (Math.abs(ly - lastLy) < 11) ly = lastLy + 11; lastLy = ly;
+          el('text', {x: x0 + 3, y: ly, class: 'lbl', style: halo() + `fill:${col};font-weight:${z.valid ? 700 : 500}`}, gLab, nm);
+        }
+      } else if (z.t !== 'OB' && $('#t_vp').checked && !(z.t === 'POC' && z.role === 'sell')) {
+        const c = css('--vp');
+        const ln = el('line', {x1: x0, x2: x1, y1: y(z.lo), y2: y(z.lo), stroke: c, 'stroke-width': z.t === 'POC' ? 1.8 : 1.1, 'stroke-dasharray': z.t === 'POC' ? null : '4 3', opacity: z.t === 'POC' ? .95 : .75}, gZ);
+        tip(ln, `${z.t} ngày ({{VPW}} phiên, tới hôm trước) ${fx(z.lo)}${z.P ? ' · nằm trong/sát OB cùng phía' : ''}`);
+        if (di === t.days.length - 1) el('text', {x: x1 - 2, y: y(z.lo) - 2, class: 'lbl', 'text-anchor': 'end', style: halo() + 'fill:' + c}, gLab, `${z.t} ngày {{VPW}}p ${fx(z.lo)}`);
+      }
+    });
+    const dpd = t.dp[di];
+    if (showDp && dpd) {                       // profile RIÊNG phiên này, ở mép phải cụm nến
+      const mx = Math.max(...dpd.v) || 1, bh = Math.max(2, Math.abs(y(dpd.p[0]) - y(dpd.p[1])) - .5), xb = x1 + 4;
+      dpd.p.forEach((pp, k) => {
+        const inVA = pp >= dpd.val && pp <= dpd.vah, isPoc = Math.abs(pp - dpd.poc) < (dpd.p[1] - dpd.p[0]) / 2 + 1e-9;
+        const r = el('rect', {x: xb, y: y(pp) - bh / 2, width: Math.max(1, dpd.v[k] / mx * PW), height: bh, fill: inVA || isPoc ? css('--vp') : css('--mut'), opacity: isPoc ? .95 : inVA ? .38 : .3}, svg);
+        tip(r, `Phiên ${sh(d)} · giá ${fx(pp)} · KL ${big(dpd.v[k])}`);
+      });
+      [['VAH', dpd.vah], ['VAL', dpd.val]].forEach(([n, v]) => { const l2 = el('line', {x1: xb, x2: xb + PW + 4, y1: y(v), y2: y(v), stroke: css('--vp'), 'stroke-width': 1.2, 'stroke-dasharray': '3 2'}, svg); tip(l2, `${n} phiên ${sh(d)} ${fx(v)}`); });
+      el('text', {x: xb, y: y(dpd.poc) - 3, class: 'lbl', style: 'fill:' + css('--vp') + ';font-weight:600'}, svg, 'POC ' + fx(dpd.poc));
+    }
+    const yd = t.dp[di - 1];
+    if ($('#t_yd').checked && di >= 1 && yd) {  // mức của phiên TRƯỚC kéo sang phiên này
+      [['POC', yd.poc], ['VAH', yd.vah], ['VAL', yd.val]].forEach(([n, v]) => {
+        const l2 = el('line', {x1: x0, x2: x1, y1: y(v), y2: y(v), stroke: css('--pv'), 'stroke-width': n === 'POC' ? 1.8 : 1.2, 'stroke-dasharray': '2 3'}, svg);
+        tip(l2, `${n} phiên ${sh(t.days[di - 1])} (hôm qua) ${fx(v)}`);
+      });
+      el('text', {x: x0 + 2, y: y(yd.poc) - 3, class: 'lbl', style: 'fill:' + css('--pv')}, svg, 'POC hôm qua ' + fx(yd.poc));
+    }
+  });
+  if ($('#t_cu').checked) {                     // cộng dồn từ phiên đầu tới hết mỗi ngày: đường bậc thang
+    const dis = t.days.map((_, i) => i).filter(i => t.cp[i] && dayX[i]);
+    [['poc', css('--cum'), 2, null], ['vah', css('--cum'), 1.2, '5 3'], ['val', css('--cum'), 1.2, '5 3']].forEach(([k, col, wd, da]) => {
+      const pts = [];
+      dis.forEach((i, j) => {
+        const yy = y(t.cp[i][k]), [a0, a1] = dayX[i];
+        pts.push([a0, yy], [a1, yy]);
+        if (j < dis.length - 1) { const xm = (a1 + dayX[dis[j + 1]][0]) / 2, yn = y(t.cp[dis[j + 1]][k]); pts.push([xm, yy], [xm, yn]); }
+      });
+      const pl = el('polyline', {points: pts.map(q => q.join(',')).join(' '), fill: 'none', stroke: col, 'stroke-width': wd, 'stroke-dasharray': da}, svg);
+      tip(pl, `${k.toUpperCase()} cộng dồn: ` + dis.map(i => `${sh(t.days[i])} ${fx(t.cp[i][k])}`).join(' → '));
+    });
+    const li = dis[dis.length - 1];
+    if (li != null) el('text', {x: dayX[li][0] + 2, y: y(t.cp[li].poc) + 11, class: 'lbl', style: 'fill:' + css('--cum')}, svg, 'POC cộng dồn ' + fx(t.cp[li].poc));
+  }
+  bars.forEach((b, i) => {
+    candle(svg, xs[i], BW - 4, y, b[2], b[3], b[4], b[5]);
+    const dl = b[6] - b[7], wl = b[8] - b[9];
+    const r = el('rect', {x: xs[i] - BW / 2, y: top, width: BW, height: H - top, fill: 'transparent'}, svg);
+    tip(r, `${sh(t.days[b[0]])} ${mm(b[1])}  O ${fx(b[2])} H ${fx(b[3])} L ${fx(b[4])} C ${fx(b[5])}\nMua CĐ ${big(b[6])} · Bán CĐ ${big(b[7])} · Delta ${big(dl)} (${((dl) / ((b[6] + b[7]) || 1) * 100).toFixed(0)}%)\nCá mập mua ${big(b[8])} · bán ${big(b[9])}`);
+  });
+  svg.appendChild(gLab);
+  if ($('#t_vw').checked) {
+    const byDay = {}; t.vwap.forEach(([di, m, v]) => (byDay[di] = byDay[di] || []).push([m, v]));
+    const pts = {};
+    bars.forEach((b, i) => {
+      const arr = byDay[b[0]] || []; let v = null;
+      for (const [m, vv] of arr) { if (m < b[1] + 15) v = vv; else break; }
+      if (v != null) (pts[b[0]] = pts[b[0]] || []).push(xs[i] + ',' + y(v));
+    });
+    Object.values(pts).forEach(p => el('polyline', {points: p.join(' '), fill: 'none', stroke: css('--gold'), 'stroke-width': 1.5}, svg));
+  }
+  const idx = {}; bars.forEach((b, i) => idx[b[0] + '|' + b[1]] = i);
+  t.ev.forEach(e => {
+    const i = idx[e.di + '|' + e.m]; if (i == null) return;
+    const s = (e.P ? 1 : 0) + (e.F ? 1 : 0) + (e.K ? 1 : 0), b = bars[i], up = e.side === 'buy', sd = up ? 'MUA' : 'BÁN';
+    const txt = `${up ? 'MUA' : 'BÁN'} ${s}/3 — Vị trí ${e.P ? '✓' : '✗'} · Dòng tiền ${e.F ? '✓' : '✗'} · Nến ${e.K ? '✓' : '✗'}\nVùng ${e.types.join('+')} ${fx(e.lo)}–${fx(e.hi)}${e.valid ? ' (OB hợp lệ)' : ''}\n${sh(t.days[e.di])} ${mm(e.m)}`;
+    if (s >= 2 && $('#t_ev').checked) tag(svg, xs[i], up ? y(b[4]) : y(b[3]), up, s === 3 ? `${sd} 3/3 ★` : `${sd} 2/3`, s === 3, up, s === 3 ? 11.5 : 10, txt);
+    else if (s < 2 && $('#t_dot').checked) { const c = el('circle', {cx: xs[i], cy: up ? y(b[4]) + 8 : y(b[3]) - 8, r: 3.2, fill: css('--dot'), stroke: '#000', 'stroke-width': .8}, svg); tip(c, txt); }
+  });
+  const dls = bars.map(b => b[6] - b[7]), dm = Math.max(1, ...dls.map(Math.abs));
+  const vmx = Math.max(...bars.map(b => b[6] + b[7])) || 1, vy = lin(0, vmx, vTop + vH, vTop);
+  bars.forEach((b, i) => {
+    const base = vTop + vH, hw = (BW - 4) / 2;
+    el('rect', {x: xs[i] - hw, y: vy(b[6]), width: hw, height: base - vy(b[6]), fill: css('--up'), opacity: .7}, svg);
+    el('rect', {x: xs[i], y: vy(b[7]), width: hw, height: base - vy(b[7]), fill: css('--dn'), opacity: .7}, svg);
+    const wl = b[8] - b[9];
+    if (wl) el('line', {x1: xs[i] - hw, x2: xs[i] + hw, y1: vy(Math.min(Math.abs(wl), vmx)), y2: vy(Math.min(Math.abs(wl), vmx)), stroke: css('--gold'), 'stroke-width': 2}, svg);
+  });
+  const cd = [], cw = []; let a = 0, w = 0, ld = -1;
+  bars.forEach(b => { if (b[0] !== ld) { ld = b[0]; a = 0; w = 0; } a += b[6] - b[7]; w += b[8] - b[9]; cd.push(a); cw.push(w); });
+  const cm = Math.max(1, ...cd.map(Math.abs), ...cw.map(Math.abs)), cy = lin(-cm, cm, cTop + cH, cTop);
+  el('line', {x1: 0, x2: W, y1: cy(0), y2: cy(0), stroke: css('--line')}, svg);
+  const seg = (arr, col) => { let cur = [], ldd = -1; const out = [];
+    arr.forEach((v, i) => { if (bars[i][0] !== ldd) { if (cur.length) out.push(cur); cur = []; ldd = bars[i][0]; } cur.push(xs[i] + ',' + cy(v)); });
+    if (cur.length) out.push(cur);
+    out.forEach(p => el('polyline', {points: p.join(' '), fill: 'none', stroke: col, 'stroke-width': 1.6}, svg)); };
+  seg(cd, css('--mut')); seg(cw, css('--gold'));
+  $('#tcap').innerHTML = `<span style="top:${vTop}px">KL chủ động 15' (xanh = mua, đỏ = bán) · vạch vàng = |delta cá mập|</span><span style="top:${cTop}px">CVD phiên (xám = tổng, vàng = cá mập tổng hợp) · reset mỗi phiên</span>`;
+  profileCol($('#tprof'), t.vp, y, H, lo, hi, D.meta.tick_days.length + ' phiên gộp');
+  host.scrollLeft = host.scrollWidth;   // cuộn về cuối SAU khi cột profile bên phải đã có chiều rộng
+  $('#tleg').innerHTML = `<span><b class="tagc buy solid">MUA 3/3 ★</b> <b class="tagc sell solid">BÁN 3/3 ★</b> đủ Vị trí + Dòng tiền + Nến</span>
+   <span><b class="tagc buy out">MUA 2/3</b> <b class="tagc sell out">BÁN 2/3</b> chỉ để theo dõi</span><span><i class="dot"></i>chạm vùng chưa đủ điểm (bật ô)</span>
+   <span><i class="zb bv"></i>OB tăng ✓ · <i class="zb bn"></i>thường</span><span><i class="zb sv"></i>OB giảm ✓ · <i class="zb sn"></i>thường</span>
+   <span><i class="ln" style="border-color:var(--vp)"></i>POC · <i class="ln" style="border-color:var(--vp);border-top-style:dashed"></i>VAH/VAL ngày {{VPW}} phiên (nhãn ở phiên cuối)</span>
+   <span><i class="ln" style="border-color:var(--gold)"></i>VWAP phiên</span>
+   <span><i class="sw" style="background:var(--vp);opacity:.45"></i>histogram mép phải mỗi phiên = profile riêng phiên đó</span>
+   <span><i class="ln" style="border-color:var(--pv);border-top-style:dotted"></i>mức hôm qua</span><span><i class="ln" style="border-color:var(--cum)"></i>cộng dồn từng ngày</span>
+   <span>cột phải ngoài cùng = profile gộp ${D.meta.tick_days.length} phiên tick</span>`;
+}
+
+/* ---------------------------------------------------------------- danh sách + tóm tắt */
+function renderSide() {
+  const s = $('#side'); s.innerHTML = '';
+  D.scan.forEach(r => {
+    const row = document.createElement('div'); row.className = 'r' + (r.s === SYM ? ' on' : '');
+    row.innerHTML = `<b>${r.s}</b><span class="sub">${fx(r.last)} <span class="${r.chg >= 0 ? 'ok' : 'bad'}">${pc(r.chg, 1)}</span></span><span>${r.valid ? `<span class="pill ob" title="OB hợp lệ còn sống">OB${r.valid}</span> ` : ''}<span class="pill ${r.score >= 3 ? 's3' : r.score == 2 ? 's2' : ''}" title="điểm hợp lưu cao nhất phiên cuối (★ = 3/3)">${r.tick ? (r.score >= 3 ? '★ ' : '') + r.score : '–'}</span></span>`;
+    row.onclick = () => { SYM = r.s; location.hash = r.s; renderAll(); };
+    s.appendChild(row);
+  });
+}
+function renderSummary() {
+  const e = D.sym[SYM], d = e.d, last = d.bars[d.bars.length - 1];
+  const val = d.obs.filter(o => o.valid && !o.broken && o.end >= d.bars.length - 1);
+  const tk = e.t ? e.t.ev.filter(x => e.t.days[x.di] === D.meta.last_tick_day) : [];
+  const al = d.marks.filter(m => m.st === 'alert'), cd = d.marks.length;
+  const alTxt = al.length ? al.map(m => `${m.bull ? 'MUA' : 'BÁN'} ${d.bars[m.i][0]}${m.star ? ' ★' : ''}`).join('; ') : 'không có';
+  $('#title').textContent = SYM + ' — ' + fx(last[4]) + ' (' + last[0] + ')';
+  $('#summary').innerHTML = `Profile {{VPW}} phiên: POC <b>${fx(d.vp.poc)}</b> · VA ${fx(d.vp.val)}–${fx(d.vp.vah)} · ATR14 ${fx(d.atr)}.
+   Cảnh báo thẻ ngày (40 phiên): <b>${alTxt}</b> (${cd} lần test OB hợp lệ).
+   OB hợp lệ còn sống: ${val.length ? val.map(o => `${o.bull ? 'tăng' : 'giảm'} ${fx(o.lo)}–${fx(o.hi)}`).join(', ') : 'không có'}.
+   Phiên tick cuối ${D.meta.last_tick_day}: ${tk.length ? tk.map(x => `${x.side === 'buy' ? 'MUA' : 'BÁN'} ${(x.P ? 1 : 0) + (x.F ? 1 : 0) + (x.K ? 1 : 0)}/3 lúc ${mm(x.m)}`).join('; ') : 'không chạm vùng nào'}.`;
+}
+function renderAll() { renderSide(); renderSummary(); renderDaily(); renderTick(); }
+
+/* ---------------------------------------------------------------- kết quả đo */
+function v1Card() {
+  const O = D.v1old; if (!O || !O.stage) return '';
+  const N = D.alerts.stage, NG = D.astats ? D.astats.groups : null, OG = O.groups, key = 'CẢNH BÁO ①②③④ (4 tiêu chí bắt buộc, chỉ dùng giá)';
+  const p = v => v == null ? '—' : (v * 100).toFixed(0) + ' %';
+  const g = (G, side) => G && G[side] && G[side][key] ? G[side][key] : null;
+  const gc = (G, side) => { const s = g(G, side); return s ? `${s.n} (thắng 10 phiên ${p(s.hold_win)})` : '—'; };
+  const fmtV = v => String(v).replace('.', ',');
+  const rows = [['OB hợp lệ (273 phiên × 39 mã)', 'valid_ob'], ['… có lần chạm lại đầu', 'touched'], ['… qua ③ (chỉ vào nửa OB)', 'zone_ok'], ['… CẢNH BÁO (④ POC trong dải)', 'alert'], ['… có dữ liệu delta/CVD', 'has_data'], ['… có ★', 'star']]
+    .map(([l, k]) => `<tr><td>${l}</td><td>${O.stage[k]}</td><td>${N[k]}</td></tr>`).join('');
+  const vt = D.daily.bull.valid, ov = O.tierA_valid, rr = x => x && x.R && x.R.test && x.R.test.n ? `${x.R.test.n} lệnh, R ${x.R.test.R >= 0 ? '+' : ''}${x.R.test.R.toFixed(3)} / nền ${x.R.test.base_R.toFixed(3)}` : '—';
+  return `<div class="card"><h2>So sánh V1: KL nến ★ ≥ ${fmtV(O.vol_x)}× TB20 (cũ) và ≥ ${fmtV(D.meta_v1.vol_x)}× TB20 (14/10/2026)</h2>
+  <div class="sub">Chỉ phần khối lượng của V1 đổi; vị trí đóng cửa (10 % trên/dưới cùng), V2 và V3 giữ nguyên. Hạ ngưỡng sau khi đã thấy kết quả là thêm một biến thể (không phải bằng chứng). OB cũ đều vẫn hợp lệ (tập con).</div>
+  <table><tr><th>Phễu cảnh báo thẻ ngày</th><th>V1 ≥ ${fmtV(O.vol_x)}×</th><th>V1 ≥ ${fmtV(D.meta_v1.vol_x)}×</th></tr>${rows}
+   <tr><td>Nhóm cảnh báo MUA, 10 năm (n, % thắng giữ 10 phiên)</td><td>${gc(OG, 'MUA')}</td><td>${gc(NG, 'MUA')}</td></tr>
+   <tr><td>Nhóm cảnh báo BÁN, 10 năm (n, % giá giảm sau 10 phiên)</td><td>${gc(OG, 'BÁN')}</td><td>${gc(NG, 'BÁN')}</td></tr>
+   <tr><td>Tầng A — OB hợp lệ chạm lại, giai đoạn kiểm 2022–26</td><td>${rr(ov)}</td><td>${rr(vt)}</td></tr></table></div>`;
+}
+function astatsCard() {
+  const A = D.astats; if (!A) return '';
+  const p = v => v == null ? '—' : (v * 100).toFixed(0) + ' %', ci = c => c ? `[${(c[0] * 100).toFixed(0)}–${(c[1] * 100).toFixed(0)}]` : '', sg = v => (v >= 0 ? '+' : '') + v.toFixed(2);
+  const rowsOf = side => Object.entries(A.groups[side]).map(([k, s]) => s.n
+    ? `<tr><td>${k}</td><td>${s.n}</td><td>${p(s.hold_win)} <span class="sub">${ci(s.hold_ci)}</span></td><td>${p(s.base_hold)}</td><td>${s.r_n ? p(s.r_win) + ' / ' + p(s.r_base_win) + ' (n=' + s.r_n + ')' : '—'}</td><td>${s.R != null ? sg(s.R) + ' / ' + sg(s.base_R) : '—'}</td></tr>`
+    : `<tr><td>${k}</td><td>0</td><td colspan="4" style="text-align:left;white-space:normal">${s.note || 'không có mẫu'}</td></tr>`).join('');
+  const head = '<tr><th>Nhóm tiêu chí</th><th>n</th><th>Thắng giữ 10 phiên [KTC 95 %]</th><th>Nền</th><th>Thắng lệnh R / nền</th><th>R TB / nền</th></tr>';
+  return `<div class="card"><h2>Xác suất thắng của các tiêu chí cảnh báo thẻ ngày — phần đo được (nến ngày ${A.meta.from}–2026, ${A.meta.n_sym} mã)</h2>
+  <div class="sub">Nhóm <b>CẢNH BÁO ①②③④</b> chỉ dùng giá nên đo được 10 năm. Nhóm <b>★</b> (thêm delta/CVD đạt) chỉ có dữ liệu thật từ 18/09 và 30/09/2026 → <b>không đủ mẫu để có xác suất thắng</b>. MUA: "thắng giữ 10 phiên" = mua mở cửa t+1, bán đóng cửa t+10, lãi ròng &gt; 0 (nền = mọi phiên-mã: ${p(A.meta.base.up10)}); "lệnh R" = dừng đáy OB − 0,25 ATR, chốt 2R, ≤ 20 phiên. BÁN: "thắng" = giá đóng cửa t+10 thấp hơn đóng cửa t (nền ${p(A.meta.base.down10)}).</div>
+  <h3>MUA (OB tăng)</h3><div class="scroll"><table>${head}${rowsOf('MUA')}</table></div>
+  <h3>BÁN (OB giảm)</h3><div class="scroll"><table>${head}${rowsOf('BÁN')}</table></div>
+  <div class="note">Mẫu rất nhỏ (nhóm cảnh báo: MUA n = ${A.groups.MUA['CẢNH BÁO ①②③④ (4 tiêu chí bắt buộc, chỉ dùng giá)'].n}, BÁN n = ${A.groups['BÁN']['CẢNH BÁO ①②③④ (4 tiêu chí bắt buộc, chỉ dùng giá)'].n}) và các tiêu chí ③④ được chọn SAU khi đã thấy dữ liệu, nên tỉ lệ cao ở nhóm nhỏ KHÔNG phải bằng chứng; khoảng tin cậy 95 % rộng và gồm cả mức nền. Không có nhóm nào qua cổng thống kê.</div></div>`;
+}
+function alertsCard() {
+  const AL = D.alerts, st = AL.stage, items = AL.items, pc2 = v => v == null ? '—' : (v * 100).toFixed(1) + ' %', f2 = v => v == null ? '—' : (v >= 0 ? '+' : '') + (v * 100).toFixed(1) + ' %';
+  const yn = v => v === true ? '✓' : v === false ? '✗' : '';
+  const rows = items.map(i => `<tr><td>${i.d}</td><td>${i.s}</td><td>${i.bull ? 'MUA (OB tăng)' : 'BÁN (OB giảm)'}</td><td>${fx(i.lo)}–${fx(i.hi)}</td><td>${fx(i.px)} / ${fx(i.close)}</td>
+    <td>${i.poc == null ? '—' : fx(i.poc)} ${i.poc_ok ? '✓' : '✗'} <span class="sub">[${fx(i.band[0])}–${fx(i.band[1])}]</span></td>
+    <td>${i.delta == null ? '—' : big(i.delta) + ' (' + pc2(i.dpct) + ') ' + yn(i.d_ok)}</td><td>${i.cvd == null ? '—' : big(i.cvd) + ' (' + pc2(i.cpct) + ') ' + yn(i.c_ok)}</td>
+    <td class="${i.st === 'alert' ? 'ok' : ''}">${i.st === 'alert' ? 'CẢNH BÁO' + (i.star ? ' ★' : '') : 'chưa đủ · ' + i.why}</td><td>${i.st === 'alert' ? f2(i.r1) + ' / ' + f2(i.r3) + ' / ' + f2(i.r5) : '—'}</td></tr>`).join('');
+  return `<div class="card"><h2>Cảnh báo thẻ NGÀY — tiêu chí hiện hành (14/10/2026), chỉ theo dõi</h2>
+  <div class="sub"><b>CẢNH BÁO = đủ 4 tiêu chí bắt buộc ①②③④</b> (chỉ dùng giá): ① OB hợp lệ còn sống; ② lần test đầu tiên; ③ chỉ vào nửa OB (MUA: giữa ≤ Low ≤ đỉnh, đóng ≥ giữa; BÁN đối xứng); ④ POC profile ngày ${AL.cfg.vp_w} phiên (tới hôm trước) trong dải giữa 25–75 % OB. <b>★ tím</b> = có thêm ⑤ delta ngày đúng dấu và/hoặc ⑥ CVD nửa đầu phiên (trước 11:30) ${'≥'} ${(AL.cfg.cvd_pct * 100).toFixed(0)} % KL ngược chiều; không có ★ vẫn là cảnh báo.</div>
+  <table><tr><th>Giai đoạn</th><th>Số lần</th></tr>
+   <tr><td>OB hợp lệ (273 phiên nến ngày × 39 mã)</td><td>${st.valid_ob}</td></tr><tr><td>… có lần chạm lại đầu tiên (sau m+3)</td><td>${st.touched}</td></tr>
+   <tr><td>… ③ chỉ vào nửa OB, đóng ≥/≤ giữa</td><td>${st.zone_ok}</td></tr>
+   <tr><td><b>… ④ POC trong dải giữa 25–75 % = CẢNH BÁO</b></td><td><b>${st.alert}</b></td></tr>
+   <tr><td>… trong đó có dữ liệu delta ngày hoặc CVD (từ 18/09, 30/09/2026)</td><td>${st.has_data}</td></tr><tr><td>… trong đó có ★ (delta và/hoặc CVD đạt)</td><td>${st.star}</td></tr></table>
+  <h3>Các lần test OB hợp lệ qua ③ (CẢNH BÁO nếu POC trong dải)</h3>
+  <div class="scroll"><table><tr><th>Ngày</th><th>Mã</th><th>Hướng</th><th>OB</th><th>Low|High / Đóng</th><th>POC (dải 25–75 %)</th><th>Delta ngày (% KL)</th><th>CVD nửa đầu (% KL)</th><th>Kết quả</th><th>Vượt trội T+1/3/5</th></tr>${rows}</table></div>
+  <div class="note">Không backtest được phần ★: delta ngày thật chỉ có từ 18/09/2026 và CVD trong phiên từ 30/09/2026. Lợi suất cột cuối (đóng cửa T → T+k, trừ trung bình 39 mã) chỉ để mô tả, KHÔNG phải bằng chứng. Định nghĩa cảnh báo ①–④ được chốt SAU khi đã thấy dữ liệu; xác suất thắng của nhóm này xem thẻ bên dưới (n rất nhỏ).</div></div>`;
+}
+function renderRes() {
+  const A = D.daily, C = D.tick, h = $('#v-res');
+  const rowA = (k, g) => {
+    const tr = g.R.train, te = g.R.test, h10 = g.hold, z = g.perm.test || {};
+    return `<tr><td>${g.label}</td><td>${tr.n || 0} / ${te.n || 0}</td><td>${te.n ? (te.R >= 0 ? '+' : '') + te.R.toFixed(3) : '—'} / ${te.n ? te.base_R.toFixed(3) : '—'}</td>
+      <td>${te.n ? Math.round(te.win * 100) + '% / ' + Math.round(te.base_win * 100) + '%' : '—'}</td><td>${pc(h10.ex)}</td><td>${z.z != null ? z.z.toFixed(2) : '—'}</td>
+      <td class="${h10.gate ? 'ok' : 'bad'}">${h10.gate ? 'QUA' : 'trượt'}</td></tr>`;
+  };
+  const rowB = g => `<tr><td>${g.label}</td><td>${g.hold.n || 0}</td><td>${pc(g.hold.ex)}</td><td>${g.hold.years_win ?? '—'}/${g.hold.years ?? '—'}</td><td class="${g.hold.gate ? 'ok' : 'bad'}">${g.hold.gate ? 'QUA' : 'trượt'}</td></tr>`;
+  const mg = A.marginal, md = (o) => o.diff_R == null ? `n ${o.n_a}/${o.n_b} (ít)` : `${o.diff_R >= 0 ? '+' : ''}${o.diff_R.toFixed(3)}R, p=${o.p.toFixed(2)} (n ${o.n_a}/${o.n_b})`;
+  const cellRow = (side) => ['Z', 'P', 'F', 'K', 'PF', 'PK', 'FK', 'PFK'].map(nm => {
+    const c1 = C.cells[`${side}|${nm}|1`], c2 = C.cells[`${side}|${nm}|2`];
+    const f = c => c.mean_bps == null ? `n=${c.n}` : `n=${c.n} · ${c.mean_bps} bps (giả ${c.fake975}) · ${c.days_same}`;
+    return `<tr><td>${nm === 'Z' ? 'Chỉ chạm vùng (nền)' : nm}</td><td>${f(c1)}</td><td>${f(c2)}</td></tr>`;
+  }).join('');
+  h.innerHTML = `
+  <div class="note"><b>Kết luận tạm (13/10/2026):</b> VP chồng OB <b>không thêm</b> lợi thế có ý nghĩa (tầng A: 0/5 giả thuyết qua cổng ở cả hai cửa sổ VP; đóng góp biên cửa sổ ${A.meta.vp_w}: ${mg.all.vp_vs_novp.diff_R >= 0 ? '+' : ''}${mg.all.vp_vs_novp.diff_R.toFixed(2)}R, p=${mg.all.vp_vs_novp.p.toFixed(2)}; vùng VP thật không hơn vùng giả). Tầng C: ${C.meta.days.length} phiên tick chỉ cho ${C.meta.n_events} lần chạm vùng, bộ ba P∧F∧K <b>chưa có mẫu</b> — chưa thể kết luận, đo lại khi ≥ 40 phiên. Không có tín hiệu nào đủ điều kiện đưa vào push/app.</div>
+  <div class="card"><h2>Tầng A — nến ngày 2016–2026, 39 mã: OB chạm lại × Volume Profile {{VPW}} phiên (MUA)</h2>
+  <div class="sub">Lệnh R: dừng đáy vùng −0,25 ATR, 2R, 20 phiên; so với nền ngẫu nhiên cùng mã-năm-khoảng dừng lỗ. Chọn 2016–21 / kiểm 2022–26. Cổng hold-10: ≥ 150 lệnh, ≥ 7 năm đúng dấu, ≥ +1 %.</div>
+  <div class="scroll"><table><tr><th>Nhóm</th><th>n (chọn/kiểm)</th><th>R kiểm / nền</th><th>Thắng kiểm / nền</th><th>vượt hold-10</th><th>z kiểm</th><th>Cổng</th></tr>
+  ${Object.entries(A.bull).map(([k, g]) => rowA(k, g)).join('')}</table></div>
+  <h3>Đóng góp biên của VP (chênh R − nền, kiểm hoán vị nhãn 2.000 lần)</h3>
+  <table><tr><th>So sánh</th><th>Tất cả</th><th>Chọn 2016–21</th><th>Kiểm 2022–26</th></tr>
+   ${[['vp_vs_novp', 'OB ∩ VP  −  OB không VP'], ['valid_vp_vs_valid_novp', 'OB hợp lệ ∩ VP  −  OB hợp lệ không VP'], ['real_vs_fake', 'VP thật  −  VP giả (+2 ATR)']].map(([k, l]) =>
+     `<tr><td>${l}</td><td>${md(mg.all[k])}</td><td>${md(mg.train[k])}</td><td>${md(mg.test[k])}</td></tr>`).join('')}</table>
+  <h3>BÁN — OB giảm chạm lại (vượt trội so với mua-đại 10 phiên; âm = đúng chiều)</h3>
+  <table><tr><th>Nhóm</th><th>n</th><th>vượt hold-10</th><th>Năm đúng</th><th>Cổng</th></tr>${Object.values(A.bear).map(rowB).join('')}</table></div>
+  <div class="card"><h2>Tầng C — tick thật ${C.meta.days[0]} → ${C.meta.days[C.meta.days.length - 1]} (${C.meta.days.length} phiên, ${C.meta.n_sym} mã): P = hợp lưu OB∩VP · F = dòng tiền · K = nến</h2>
+  <div class="sub">Lợi suất vượt rổ cùng ngày/mốc 15' (bps). Đưa vào cổng cũ: vượt mức giả 97,5 %, > 1 bước giá (${C.meta.tick_bps} bps), ≥ 70 % ngày cùng dấu, hai nửa mã cùng dấu. "n=" khi &lt; 20 mẫu = không đo.</div>
+  <h3>MUA (kỳ vọng tăng)</h3><table><tr><th>Ô</th><th>T+1</th><th>T+2</th></tr>${cellRow('buy')}</table>
+  <h3>BÁN (kỳ vọng giảm)</h3><table><tr><th>Ô</th><th>T+1</th><th>T+2</th></tr>${cellRow('sell')}</table></div>
+  ${alertsCard()}
+  ${astatsCard()}
+  ${v1Card()}
+  <div class="card"><h2>So sánh cửa sổ Volume Profile: ${D.w60.vp_w} phiên (lần đo đầu) và ${A.meta.vp_w} phiên (đổi 13/10 theo yêu cầu)</h2>
+  <div class="sub">Đóng góp biên của VP: chênh (R − nền) giữa OB chồng VP và OB không chồng VP, tầng A, MUA. Đổi cửa sổ là thêm một biến thể đã thử (tính vào max-z).</div>
+  <table><tr><th>Cửa sổ</th><th>Tất cả</th><th>Kiểm 2022–26</th><th>VP thật − VP giả (tất cả)</th></tr>
+   <tr><td>${D.w60.vp_w} phiên</td><td>${md(D.w60.marginal.all.vp_vs_novp)}</td><td>${md(D.w60.marginal.test.vp_vs_novp)}</td><td>${md(D.w60.marginal.all.real_vs_fake)}</td></tr>
+   <tr><td>${A.meta.vp_w} phiên</td><td>${md(mg.all.vp_vs_novp)}</td><td>${md(mg.test.vp_vs_novp)}</td><td>${md(mg.all.real_vs_fake)}</td></tr></table></div>
+  <div class="note">Lưu ý: dòng "OB hợp lệ, không chồng VP" (+0,63R, n = 13 ở giai đoạn kiểm) chỉ là nhóm con rút ra SAU khi nhìn kết quả, không thuộc họ giả thuyết khoá trước, mẫu quá nhỏ — KHÔNG dùng làm bằng chứng.</div>
+  <div class="card"><h2>Kỷ luật</h2><div class="sub">Họ giả thuyết khoá trước: ${A.meta.n_tested} (tầng A) + ${C.meta.n_tested} (tầng C, bộ ba). Không đổi ngưỡng giữa các mốc đo. Mốc đo lại: ~15/11/2026 (≥ 25 phiên), cuối 11/2026 (≥ 40 phiên), 03/2027 (delta ngày thật 6 tháng).</div></div>`;
+}
+
+/* ---------------------------------------------------------------- cách đọc */
+function renderHow() {
+  $('#v-how').innerHTML = `<div class="card"><h2>Mô hình 3 tầng "Vị trí – Dòng tiền – Kích hoạt"</h2>
+  <p><b>V — Vị trí.</b> Giá chạm vùng cầu/cung. Vùng cầu = OB tăng còn sống, POC, VAL; vùng cung = OB giảm, POC, VAH (profile {{VPW}} phiên tới hôm trước). <b>P = 1</b> khi OB chồng mức VP (dung sai 0,25 ATR) hoặc mức VP nằm trong/sát OB cùng phía — "vùng được hai nguồn xác nhận".</p>
+  <p><b>F — Dòng tiền.</b> Mua: delta nến 15' ≥ +20 % KL, hoặc giá chạm đáy phiên mà CVD cá mập phiên còn dương. Bán: hấp thụ mua (delta ≥ +30 % nhưng đóng nửa dưới nến) hoặc giá chạm đỉnh phiên mà CVD cá mập âm. Cá mập = lệnh ≥ 500 tr + cá mập ẩn của app price-path.</p>
+  <p><b>K — Kích hoạt.</b> Mua: nến xanh đóng cửa ≥ đáy vùng sau khi bóng chạm vùng. Bán: nến đỏ đóng cửa ≤ đỉnh vùng sau khi bóng chạm vùng.</p>
+  <p>Điểm 0–3, trọng số bằng nhau (không tối ưu). Thẻ chỉ hiện từ 2/3; thẻ <b>đặc có ★</b> = 3/3 = mức "cảnh báo". (Điều này áp dụng cho thẻ 15'. Thẻ NGÀY dùng tiêu chí riêng bên dưới.)</p>
+  <p><b>Cảnh báo trên thẻ NGÀY — 4 tiêu chí BẮT BUỘC cùng lúc (MUA; BÁN đối xứng) + dấu ★ tím:</b></p>
+  <p>① <b>OB hợp lệ còn sống</b>: OB tăng đạt V1+V2+V3 (nến xác nhận KL ≥ {{VOLX}}× TB20 đóng trong 10 % trên cùng, có FVG ≥ 1 ATR hợp lưu, vùng ≤ 1,5 ATR), ≤ 60 phiên, chưa đóng cửa thủng đáy.<br>
+  ② <b>Phiên test</b> = lần giá quay lại chạm vùng ĐẦU TIÊN (sau khi đã rời hẳn lên trên, và sau phiên ★ + 3). Lần chạm đầu bị dùng hết dù đạt hay không.<br>
+  ③ <b>Chỉ vào nửa trên vùng</b>: điểm giữa ≤ Low ≤ đỉnh OB (râu không xuống quá đường "50 %") và đóng cửa ≥ điểm giữa. (BÁN: đáy OB ≤ High ≤ giữa, đóng cửa ≤ giữa.)<br>
+  ④ <b>POC trong dải giữa OB</b>: POC của profile ngày {{VPW}} phiên (tính đến hôm trước phiên test, đường tím) nằm trong 25–75 % chiều cao OB (dải tô đậm trong hộp OB hợp lệ).</p>
+  <p><b>Dấu ★ tím</b> (không bắt buộc): gắn thêm lên thẻ khi có <b>1 trong 2 hoặc cả 2</b> điều kiện dòng tiền của phiên test — ⑤ delta ngày &gt; 0 (BÁN: &lt; 0); ⑥ CVD (mua−bán chủ động cộng dồn từ nến 5' khớp liên tục) chạm đáy ≤ −15 % KL phiên trước 11:30 (BÁN: đỉnh ≥ +15 % KL). Không có ★ vẫn là cảnh báo; thiếu dữ liệu (delta ngày thật chỉ có từ 18/09, CVD trong phiên từ 30/09/2026) thì không ★.</p>
+  <p>Thẻ <b>đặc</b> = đủ ①②③④. Thẻ <b>viền rỗng</b> (bật ô "cả lần test thiếu POC") = lần test OB hợp lệ qua ③ nhưng POC ngoài dải giữa. Thẻ ngày không dùng TB20 hay nến xác nhận.</p>
+  <p><b>Các bộ mức Volume Profile trên thẻ 15' (khác nhau nên đọc kỹ):</b></p>
+  <p>① <b>Profile ngày {{VPW}} phiên</b> — các đường tím (POC liền, VAH/VAL đứt) chạy ngang khung nến, dựng từ nến ngày tới hôm trước, giống nhau mọi phiên. ② <b>Profile từng phiên</b> — histogram nhỏ ở mép phải mỗi cụm nến, dựng từ nến 5' của chính phiên đó (tick thật). ③ <b>Mức hôm qua</b> — POC/VAH/VAL của phiên trước, kéo sang phiên kế tiếp (xám chấm). ④ <b>Cộng dồn</b> — profile tick gộp từ phiên đầu tới hết mỗi ngày, vẽ thành bậc thang (xanh ngọc); ngày cuối trùng cột phải ngoài cùng.</p>
+  <h3>Bảng ký hiệu và màu sắc</h3>
+  <p>Nguyên tắc: <b>màu nến</b> (xanh lá = tăng, đỏ = giảm) chỉ dành cho nến, khối lượng, delta. <b>Vùng và tín hiệu</b> dùng cặp màu khác hẳn: <b class="tagc buy solid">xanh dương = CẦU / MUA</b> <b class="tagc sell solid">cam = CUNG / BÁN</b>. Tím = Volume Profile. Vàng = VWAP / cá mập.</p>
+  <table class="symt">
+   <tr><td><i class="zb bv"></i><i class="zb bn"></i></td><td>OB tăng (vùng cầu): nến đỏ ngay trước nhịp đẩy lên mạnh. Ô <b>đậm, viền dày, nhãn ✓</b> = hợp lệ (nến xác nhận KL ≥ {{VOLX}}× TB20, có FVG ≥ 1 ATR, vùng hẹp ≤ 1,5 ATR); ô nhạt, viền mỏng = thường.</td></tr>
+   <tr><td><i class="zb sv"></i><i class="zb sn"></i></td><td>OB giảm (vùng cung): nến xanh ngay trước nhịp đẩy xuống mạnh; cách đọc đậm/nhạt như trên.</td></tr>
+   <tr><td><i class="zb br"></i></td><td>OB đã thủng (giá đóng cửa xuyên qua vùng): ẩn mặc định, bật ô "Hiện OB đã thủng" để xem lại.</td></tr>
+   <tr><td><b class="tagc buy solid">MUA</b> <b class="tagc sell solid">BÁN</b></td><td>Thẻ ngày: CẢNH BÁO — đủ 4 tiêu chí bắt buộc ①②③④ (OB hợp lệ, lần test đầu, chỉ vào nửa OB, POC trong dải giữa).</td></tr>
+   <tr><td><b class="tagc buy solid">MUA</b><b class="starb">★</b></td><td>Thẻ ngày: cảnh báo có thêm dòng tiền — delta ngày đúng dấu và/hoặc CVD nửa đầu phiên ≥ 15 % KL ngược chiều (tooltip ghi từng cái).</td></tr>
+   <tr><td><b class="tagc buy out">MUA</b> <b class="tagc sell out">BÁN</b></td><td>Thẻ ngày: lần test OB hợp lệ qua điều kiện ③ nhưng POC ngoài dải giữa (chỉ hiện khi bật ô "cả lần test thiếu POC"); rê chuột để xem lý do.</td></tr>
+   <tr><td><i class="ln" style="border-color:var(--buy);border-top-style:dashed"></i> <i class="ln" style="border-color:var(--sell);border-top-style:dashed"></i></td><td>Đường "50 %" trong OB hợp lệ còn sống: mốc điểm giữa của tiêu chí cảnh báo.</td></tr>
+   <tr><td><b class="tagc buy solid">MUA 3/3 ★</b> <b class="tagc sell solid">BÁN 3/3 ★</b></td><td>Thẻ 15': đủ ba điều kiện Vị trí + Dòng tiền + Nến — mức cảnh báo cao nhất.</td></tr>
+   <tr><td><b class="tagc buy out">MUA 2/3</b> <b class="tagc sell out">BÁN 2/3</b></td><td>Thẻ 15': đủ hai điều kiện, chỉ để theo dõi.</td></tr>
+   <tr><td><i class="dot"></i></td><td>Chấm cam viền đen: giá chạm vùng nhưng chưa đủ 2/3 điểm (bật ô "mọi lần chạm vùng").</td></tr>
+   <tr><td><i class="ln" style="border-color:var(--vp)"></i> <i class="ln" style="border-color:var(--vp);border-top-style:dashed"></i></td><td>POC (liền) và VAH/VAL (đứt) của Volume Profile — màu tím.</td></tr>
+   <tr><td><i class="ln" style="border-color:var(--gold)"></i></td><td>VWAP phiên (vàng); vạch vàng ở khung KL/Delta = delta cá mập.</td></tr>
+   <tr><td><i class="ln" style="border-color:var(--wl)"></i></td><td>Khung CVD ngày: đường tím = CVD cá mập (cộng dồn từ 18/09, cùng thang với CVD tổng) = delta lệnh lớn ≥ 500 tr + cá mập ẩn. Cá mập ẩn chỉ có từ phiên 25/09 và 30/09, các phiên khác chỉ có lệnh lớn (tooltip từng chấm ghi rõ). Đường vàng = CVD tổng mọi lệnh (chưa tách cá mập).</td></tr>
+  </table>
+  <div class="note">Đây là bản nghiên cứu, chưa phải tín hiệu giao dịch: các lab trước đo từng chỉ báo riêng đều không qua cổng, xem tab "Kết quả đo".</div></div>`;
+}
+
+document.querySelectorAll('.tab').forEach(b => b.onclick = () => {
+  document.querySelectorAll('.tab').forEach(x => x.classList.toggle('on', x === b));
+  ['chart', 'res', 'how'].forEach(k => $('#v-' + k).classList.toggle('hide', k !== b.dataset.t));
+});
+['d_ob', 'd_vp', 'd_mk', 'd_nvp', 'd_ma', 'd_br'].forEach(id => $('#' + id).onchange = renderDaily);
+['t_ob', 't_vp', 't_vw', 't_ev', 't_dot', 't_dp', 't_yd', 't_cu'].forEach(id => $('#' + id).onchange = renderTick);
+$('#sub').textContent = `Nến ngày tới ${D.meta.last_daily} · tick thật ${D.meta.tick_days.length} phiên (${D.meta.tick_days[0]} → ${D.meta.last_tick_day}) · 39 mã KingStock · chỉ nghiên cứu, không phải tín hiệu${D.meta.built ? ' · dựng ' + D.meta.built : ''}${D.meta.last_tick_day < D.meta.last_daily ? ' · tick phiên ' + D.meta.last_daily + ' chưa có (nguồn order-flow-live thường lên 19:00–22:00), thẻ 15′ đang tới ' + D.meta.last_tick_day : ''}`;
+if (!SYM || !D.sym[SYM]) SYM = D.scan[0].s;
+renderAll(); renderRes(); renderHow();
+const refit = () => { const w = $('#dscroll').clientWidth; if (w && Math.abs(w - (window.__dw || 0)) > 1) renderDaily(); };
+requestAnimationFrame(() => requestAnimationFrame(refit)); window.addEventListener('load', refit);
+let rzT; window.addEventListener('resize', () => { clearTimeout(rzT); rzT = setTimeout(refit, 150); });
+{ const q = new URLSearchParams(location.search).get('tab'); if (q) { const b = document.querySelector('.tab[data-t="' + q + '"]'); if (b) b.click(); } }
+</script>
+</body>
+</html>

@@ -1,0 +1,15 @@
+__pycache__/
+*.pyc
+site/
+# dữ liệu tải/dựng lại mỗi lần chạy
+src/cvd-candle-lab/data/raw/
+src/cvd-candle-lab/data/days/
+src/cvd-candle-lab/data/bars.json
+src/cvd-candle-lab/data/results*.json
+src/cvd-candle-lab/data/algo/*
+!src/cvd-candle-lab/data/algo/watchlist.json
+src/confluence-flow-lab/data/daily/
+src/confluence-flow-lab/data/of/
+src/confluence-flow-lab/data/tick.json
+src/confluence-flow-lab/data/daily_alerts.json
+src/confluence-flow-lab/index.html

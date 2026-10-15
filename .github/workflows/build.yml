@@ -1,0 +1,116 @@
+# Dựng trang Confluence Flow mỗi ngày giao dịch (cách A).
+#   17:00 VN (10:00 UTC): nến ngày đã chốt → dựng phần nến ngày, thẻ 15' giữ phiên tick gần nhất.
+#   19:00 → 23:00 VN (12:00–16:00 UTC), 30 phút/lần: chờ tick hôm nay của order-flow-live (thường lên 19:00–22:00).
+# run.py thoát 0 ngay nếu nguồn chưa đủ hoặc đã dựng (status.json) → các lượt thừa chỉ tốn ~1 phút, repo public nên miễn phí.
+# Trang đăng thẳng lên Pages (không commit index.html → repo không phình); chỉ commit status.json nhỏ, cũng giữ repo
+# "có hoạt động" để GitHub không tắt lịch chạy sau 60 ngày.
+name: build
+
+on:
+  schedule:
+    - cron: "0 10 * * 1-5"
+    - cron: "0,30 12-15 * * 1-5"
+    - cron: "0 16 * * 1-5"
+  workflow_dispatch:
+    inputs:
+      force:
+        description: "Dựng lại dù hôm nay đã dựng"
+        default: "false"
+
+permissions:
+  contents: write
+  pages: write
+  id-token: write
+
+concurrency:
+  group: build
+  cancel-in-progress: false
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    timeout-minutes: 60
+    outputs:
+      publish: ${{ steps.run.outputs.publish }}
+      label: ${{ steps.run.outputs.label }}
+    steps:
+      - uses: actions/checkout@v5
+
+      - uses: actions/setup-python@v6
+        with:
+          python-version: "3.12"
+          cache: pip
+
+      - run: pip install -r requirements.txt
+
+      # tar tick cũ (~2,5 MB/phiên) giữ trong cache để mỗi lượt chỉ tải phiên mới
+      - uses: actions/cache/restore@v4
+        id: cache
+        with:
+          path: |
+            src/cvd-candle-lab/data/raw
+            src/cvd-candle-lab/data/days
+            src/cvd-candle-lab/data/algo
+          key: ticks-none
+          restore-keys: ticks-
+
+      - name: Dựng trang
+        id: run
+        env:
+          GITHUB_TOKEN: ${{ github.token }}
+        run: |
+          if [ "${{ github.event.inputs.force }}" = "true" ]; then FORCE=--force; else FORCE=; fi
+          python run.py $FORCE
+
+      # chỉ lưu cache mới khi có thêm tar/cá mập ẩn (khoá = phiên tick cuối + số tệp algo)
+      - name: Khoá cache
+        id: ck
+        if: always()
+        run: echo "key=ticks-$(ls src/cvd-candle-lab/data/raw 2>/dev/null | tail -1)-$(ls src/cvd-candle-lab/data/algo 2>/dev/null | wc -l)" >> "$GITHUB_OUTPUT"
+
+      - uses: actions/cache/save@v4
+        if: always() && steps.ck.outputs.key != steps.cache.outputs.cache-matched-key
+        with:
+          path: |
+            src/cvd-candle-lab/data/raw
+            src/cvd-candle-lab/data/days
+            src/cvd-candle-lab/data/algo
+          key: ${{ steps.ck.outputs.key }}
+
+      - uses: actions/upload-pages-artifact@v3
+        if: steps.run.outputs.publish == 'true'
+        with:
+          path: site
+
+      - uses: actions/upload-artifact@v4
+        if: steps.run.outputs.publish == 'true'
+        with:
+          name: status
+          path: status.json
+
+  deploy:
+    needs: build
+    if: needs.build.outputs.publish == 'true'
+    runs-on: ubuntu-latest
+    environment:
+      name: github-pages
+      url: ${{ steps.deploy.outputs.page_url }}
+    steps:
+      - id: deploy
+        uses: actions/deploy-pages@v4
+
+      - uses: actions/checkout@v5
+
+      - uses: actions/download-artifact@v4
+        with:
+          name: status
+
+      - name: Commit status.json
+        run: |
+          git config user.name "confluence-flow-bot"
+          git config user.email "confluence-flow-bot@users.noreply.github.com"
+          git add status.json
+          if git diff --cached --quiet; then exit 0; fi
+          git commit -m "build: ${{ needs.build.outputs.label }} [skip ci]"
+          for i in 1 2 3; do git pull --rebase && git push && exit 0; sleep 5; done
+          exit 1
