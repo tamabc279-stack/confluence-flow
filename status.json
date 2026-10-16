@@ -1,10 +1,10 @@
 {
  "daily": "2026-10-16",
- "tick": "2026-10-15",
- "tick_days": 12,
- "full": false,
- "built": "2026-10-16T17:17:30+07:00",
- "touches": 186,
+ "tick": "2026-10-16",
+ "tick_days": 13,
+ "full": true,
+ "built": "2026-10-16T21:06:45+07:00",
+ "touches": 201,
  "alert_stage": {
   "valid_ob": 25,
   "touched": 13,
