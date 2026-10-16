@@ -55,6 +55,10 @@ def zones_for(sym: str, day: str, shift: float = 0.0) -> list[dict]:
                 continue
             if not bull and (c[ob["m"] + 1:] > ob["hi"]).any():
                 continue
+            # OB ĐÃ DÙNG (16/10/2026): đã chạm lần đầu rồi bật ra khỏi vùng (Low > đỉnh; OB giảm High < đáy) trước hôm nay → bỏ qua
+            tt = M.first_touch(h, l, ob, bull)
+            if tt is not None and any((l[u] > ob["hi"]) if bull else (h[u] < ob["lo"]) for u in range(tt + 1, n)):
+                continue
             f = VO.flags(df, ob, fv, bull)
             obs.append({"bull": bull, "lo": ob["lo"] + shift * atr, "hi": ob["hi"] + shift * atr, "valid": f["valid"],
                         "m": str(df["d"].iloc[ob["m"]].date())})

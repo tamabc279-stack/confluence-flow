@@ -46,3 +46,7 @@ Chạy trên máy: `"c:\Claude code\price-path\venv\Scripts\python" run.py --for
 - `web/` (manifest, sw.js, icons) được `run.py` chép vào `site/` cạnh trang. Nút vàng "⬇ Cài app xuống điện thoại" ở đầu trang
   (chỉ hiện khi Chrome cho cài); tab Cách đọc có hộp "Cài app" kèm cách cài tay (Chrome ⋮ → Cài đặt ứng dụng; iPhone Safari → Chia sẻ → Thêm vào MH chính).
 - Đẩy code lên `main` (web/, src/, run.py…) → workflow tự dựng lại ngay.
+
+## Tiêu chí "OB chỉ dùng một lần" (16/10/2026)
+OB đã dùng = sau lần chạm đầu, phiên đầu tiên giá bật hẳn ra khỏi vùng (OB tăng Low > đỉnh; OB giảm High < đáy) → ẩn như OB thủng,
+không còn là vùng ở thẻ 15'. Chi tiết và số liệu trước/sau: README của lab `confluence-flow-lab`. Cảnh báo thẻ ngày không đổi.

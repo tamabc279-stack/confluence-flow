@@ -91,7 +91,7 @@ h3{font-size:14px;margin:14px 0 6px}
         <label><input type="checkbox" id="d_mk" checked> Cảnh báo MUA/BÁN</label>
         <label><input type="checkbox" id="d_nvp"> cả lần test thiếu POC</label>
         <label><input type="checkbox" id="d_ma" checked> TB20 khối lượng</label>
-        <label><input type="checkbox" id="d_br"> Hiện OB đã thủng</label>
+        <label><input type="checkbox" id="d_br"> Hiện OB đã thủng / đã dùng</label>
       </div>
       <div class="chart"><div class="pos"><div class="scroll" id="dscroll"></div><div class="cap" id="dcap"></div></div><div id="dprof"></div></div>
       <div class="leg" id="dleg"></div>
@@ -208,22 +208,23 @@ function renderDaily() {
   const cp = el('clipPath', {id: 'dc'}, svg); el('rect', {x: 0, y: top, width: W, height: hP}, cp);
   const gZ = el('g', {'clip-path': 'url(#dc)'}, svg), gLab = el('g', {'clip-path': 'url(#dc)'});   // gLab gắn vào svg SAU khi vẽ nến → nhãn nằm trên nến
   if ($('#d_ob').checked) d.obs.forEach(o => {
-    if (o.broken && !$('#d_br').checked) return;       // OB đã thủng: ẩn mặc định
+    const gone = o.broken || o.used;                   // đã thủng, hoặc ĐÃ DÙNG (chạm lần đầu rồi bật ra khỏi vùng)
+    if (gone && !$('#d_br').checked && !(o.used && o.marked)) return;   // ẩn mặc định; OB đã dùng nhưng có thẻ MUA/BÁN ở phiên test vẫn vẽ để thẻ không treo giữa trống
     const tk = o.bull ? '--buy' : '--sell', col = css(tk);
     const x0 = Math.max(0, x(Math.max(o.k, 0)) - BW / 2), x1 = x(Math.min(o.end, n - 1)) + BW / 2, yt = y(o.hi), hh = Math.max(2, y(o.lo) - y(o.hi));
     const r = el('rect', {x: x0, y: yt, width: Math.max(2, x1 - x0), height: hh,
-      fill: o.broken ? 'none' : hexA(tk, o.valid ? .24 : .08), stroke: o.broken ? css('--mut') : col,
-      'stroke-width': o.valid ? 2 : .8, 'stroke-dasharray': o.broken ? '3 3' : null}, gZ);
-    const nm = `${o.bull ? 'OB tăng' : 'OB giảm'}${o.valid ? ' ✓' : ''} ${fx(o.lo)}–${fx(o.hi)}`;
-    tip(r, nm + `${o.valid ? ' · HỢP LỆ' : ' · thường'}${o.broken ? ' · đã thủng' : ''}`);
-    if (o.valid && !o.broken) {                       // điểm giữa (50 %) của OB hợp lệ: mốc của tiêu chí cảnh báo
+      fill: gone ? 'none' : hexA(tk, o.valid ? .24 : .08), stroke: gone ? css('--mut') : col,
+      'stroke-width': o.valid ? 2 : .8, 'stroke-dasharray': gone ? '3 3' : null}, gZ);
+    const nm = `${o.bull ? 'OB tăng' : 'OB giảm'}${o.valid ? ' ✓' : ''} ${fx(o.lo)}–${fx(o.hi)}${o.used ? ' · đã dùng' : ''}`;
+    tip(r, nm + `${o.valid ? ' · HỢP LỆ' : ' · thường'}${o.broken ? ' · đã thủng' : ''}${o.used ? ' · ĐÃ DÙNG (chạm lần đầu rồi bật ra khỏi vùng)' : ''}`);
+    if (o.valid && !gone) {                       // điểm giữa (50 %) của OB hợp lệ: mốc của tiêu chí cảnh báo
       const ym = y((o.lo + o.hi) / 2), bl = o.lo + D.alerts.cfg.poc_band[0] * (o.hi - o.lo), bh2 = o.lo + D.alerts.cfg.poc_band[1] * (o.hi - o.lo);
       const bb = el('rect', {x: x0, y: y(bh2), width: Math.max(2, x1 - x0), height: Math.max(1, y(bl) - y(bh2)), fill: hexA(tk, .16)}, gZ);   // dải giữa 25–75 %: POC phải nằm trong đây
       tip(bb, `Dải giữa OB ${fx(bl)}–${fx(bh2)} (25–75 % chiều cao): POC profile ngày phải nằm trong dải này`);
       el('line', {x1: x0, x2: x1, y1: ym, y2: ym, stroke: col, 'stroke-width': 1, 'stroke-dasharray': '3 3'}, gZ);
       if (x1 - x0 >= 70) el('text', {x: x1 - 3, y: ym - 2, class: 'lbl', 'text-anchor': 'end', style: halo() + `fill:${col}`}, gLab, '50 %');
     }
-    if (x1 - x0 >= 70) el('text', {x: x0 + 3, y: hh >= 15 ? yt + 10 : yt - 3, class: 'lbl', style: halo() + `fill:${o.broken ? css('--mut') : col};font-weight:${o.valid ? 700 : 500}`}, gLab, nm);
+    if (x1 - x0 >= 70) el('text', {x: x0 + 3, y: hh >= 15 ? yt + 10 : yt - 3, class: 'lbl', style: halo() + `fill:${gone ? css('--mut') : col};font-weight:${o.valid ? 700 : 500}`}, gLab, nm);
   });
   if ($('#d_vp').checked) {
     [['POC', d.vp.poc], ['VAH', d.vp.vah], ['VAL', d.vp.val]].forEach(([nm, v]) =>
@@ -326,7 +327,7 @@ function renderDaily() {
   if (!narrow) profileCol($('#dprof'), d.vp, y, H, lo, hi, '{{VPW}} phiên ngày');
   host.scrollLeft = host.scrollWidth;
   $('#dleg').innerHTML = `<span><i class="zb bv"></i>OB tăng ✓ hợp lệ</span><span><i class="zb bn"></i>OB tăng thường</span>
-   <span><i class="zb sv"></i>OB giảm ✓ hợp lệ</span><span><i class="zb sn"></i>OB giảm thường</span><span><i class="zb br"></i>đã thủng (ẩn, bật ô để xem)</span>
+   <span><i class="zb sv"></i>OB giảm ✓ hợp lệ</span><span><i class="zb sn"></i>OB giảm thường</span><span><i class="zb br"></i>đã thủng / đã dùng (ẩn, bật ô để xem)</span>
    <span><i class="ln" style="border-color:var(--buy);border-top-style:dashed"></i>50 % của OB hợp lệ · dải tô đậm = giữa 25–75 % (POC phải nằm trong)</span>
    <span><b class="tagc buy solid">MUA</b> <b class="tagc sell solid">BÁN</b> CẢNH BÁO = đủ ①②③④ (OB hợp lệ còn sống + lần test đầu + chỉ vào nửa OB + POC trong dải giữa)</span>
    <span><b class="tagc buy solid">MUA</b><b class="starb">★</b> ★ tím = có thêm delta ngày và/hoặc CVD nửa đầu phiên đạt</span>
@@ -490,7 +491,7 @@ function renderSide() {
 }
 function renderSummary() {
   const e = D.sym[SYM], d = e.d, last = d.bars[d.bars.length - 1];
-  const val = d.obs.filter(o => o.valid && !o.broken && o.end >= d.bars.length - 1);
+  const val = d.obs.filter(o => o.valid && !o.broken && !o.used && o.end >= d.bars.length - 1);
   const tk = e.t ? e.t.ev.filter(x => e.t.days[x.di] === D.meta.last_tick_day) : [];
   const al = d.marks.filter(m => m.st === 'alert'), cd = d.marks.length;
   const alTxt = al.length ? al.map(m => `${m.bull ? 'MUA' : 'BÁN'} ${d.bars[m.i][0]}${m.star ? ' ★' : ''}`).join('; ') : 'không có';
@@ -615,7 +616,8 @@ function renderHow() {
   <table class="symt">
    <tr><td><i class="zb bv"></i><i class="zb bn"></i></td><td>OB tăng (vùng cầu): nến đỏ ngay trước nhịp đẩy lên mạnh. Ô <b>đậm, viền dày, nhãn ✓</b> = hợp lệ (nến xác nhận KL ≥ {{VOLX}}× TB20, có FVG ≥ 1 ATR, vùng hẹp ≤ 1,5 ATR); ô nhạt, viền mỏng = thường.</td></tr>
    <tr><td><i class="zb sv"></i><i class="zb sn"></i></td><td>OB giảm (vùng cung): nến xanh ngay trước nhịp đẩy xuống mạnh; cách đọc đậm/nhạt như trên.</td></tr>
-   <tr><td><i class="zb br"></i></td><td>OB đã thủng (giá đóng cửa xuyên qua vùng): ẩn mặc định, bật ô "Hiện OB đã thủng" để xem lại.</td></tr>
+   <tr><td><i class="zb br"></i></td><td>OB đã thủng (giá đóng cửa xuyên qua vùng): ẩn mặc định, bật ô "Hiện OB đã thủng / đã dùng" để xem lại.</td></tr>
+   <tr><td><i class="zb br"></i></td><td><b>OB chỉ dùng một lần</b>: sau lần chạm đầu tiên, phiên đầu tiên giá bật hẳn ra khỏi vùng (OB tăng: Low &gt; đỉnh vùng; OB giảm: High &lt; đáy vùng) thì OB đã dùng — ẩn như OB thủng, các lần quay lại test sau bỏ qua, vùng cũng không còn xuất hiện ở thẻ 15'. Giá nằm lại trong vùng nhiều phiên thì OB vẫn còn sống.</td></tr>
    <tr><td><b class="tagc buy solid">MUA</b> <b class="tagc sell solid">BÁN</b></td><td>Thẻ ngày: CẢNH BÁO — đủ 4 tiêu chí bắt buộc ①②③④ (OB hợp lệ, lần test đầu, chỉ vào nửa OB, POC trong dải giữa).</td></tr>
    <tr><td><b class="tagc buy solid">MUA</b><b class="starb">★</b></td><td>Thẻ ngày: cảnh báo có thêm dòng tiền — delta ngày đúng dấu và/hoặc CVD nửa đầu phiên ≥ 15 % KL ngược chiều (tooltip ghi từng cái).</td></tr>
    <tr><td><b class="tagc buy out">MUA</b> <b class="tagc sell out">BÁN</b></td><td>Thẻ ngày: lần test OB hợp lệ qua điều kiện ③ nhưng POC ngoài dải giữa (chỉ hiện khi bật ô "cả lần test thiếu POC"); rê chuột để xem lý do.</td></tr>

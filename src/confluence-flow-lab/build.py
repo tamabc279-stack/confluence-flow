@@ -107,6 +107,16 @@ def daily_pack(sym: str, raw: dict, HID: dict) -> dict:
             else:
                 broken = False
             t = M.first_touch(h, l, ob, bull)
+            # "ĐÃ DÙNG" (16/10/2026, người dùng): sau lần chạm đầu, phiên đầu tiên giá RỜI HẲN vùng về phía nhịp (Low > đỉnh; OB giảm High < đáy)
+            # → OB chết, các lần quay lại test sau bỏ qua. Thủng đáy trước khi bật ra thì vẫn là "thủng", không phải "đã dùng".
+            used = False
+            if t is not None:
+                for u in range(t + 1, min(m + M.LIFE, n - 1) + 1):
+                    if (l[u] > ob["hi"]) if bull else (h[u] < ob["lo"]):
+                        if not broken or u < end:
+                            end, used, broken = u, True, False
+                        break
+            marked = False
             stage["valid_ob"] += bool(f["valid"])
             if f["valid"] and t is not None and t > m + LAG:
                 stage["touched"] += 1
@@ -131,13 +141,14 @@ def daily_pack(sym: str, raw: dict, HID: dict) -> dict:
                            "cvd": fl["cvd"], "cpct": r4(fl["cpct"]), "kl": int(v[t]), "poc": r4(poc), "poc_ok": bool(poc_ok),
                            "band": [r4(b_lo), r4(b_hi)], "d_ok": fl["d_ok"], "c_ok": fl["c_ok"], "star": bool(star), "_t": t}
                     cands.append(rec)
+                    marked = marked or t >= i0
                     if t >= i0:
                         marks.append({**{k: rec[k] for k in ("bull", "st", "why", "lo", "hi", "mid", "px", "close", "delta", "dpct", "cvd", "cpct", "kl",
                                                               "poc", "poc_ok", "band", "d_ok", "c_ok", "star")}, "i": t - i0})
             if end < i0:
                 continue
             obs.append({"bull": bull, "k": ob["k"] - i0, "m": m - i0, "end": end - i0, "lo": r4(ob["lo"]), "hi": r4(ob["hi"]),
-                        "valid": f["valid"], "broken": broken})
+                        "valid": f["valid"], "broken": broken, "used": used, "marked": marked})
     sw = slice(n - VP_W, n)
     tp = (df["h"] + df["l"] + df["c"]) / 3
     prof = profile_pack(df["l"].to_numpy(float)[sw], df["h"].to_numpy(float)[sw], tp.to_numpy(float)[sw],
@@ -205,7 +216,7 @@ def main() -> int:
         data["sym"][sym] = {"d": d, "t": t}
         sc = [e for e in (t["ev"] if t else []) if t["days"][e["di"]] == last]
         best = max(sc, key=lambda e: e["P"] + e["F"] + e["K"], default=None)
-        valid_alive = [o for o in d["obs"] if o["valid"] and not o["broken"] and o["end"] >= len(d["bars"]) - 1]
+        valid_alive = [o for o in d["obs"] if o["valid"] and not o["broken"] and not o["used"] and o["end"] >= len(d["bars"]) - 1]
         data["scan"].append({"s": sym, "score": (best["P"] + best["F"] + best["K"]) if best else 0, "side": best["side"] if best else None,
                              "n_ev": len(sc), "valid": len(valid_alive), "tick": sym in uni, "last": d["bars"][-1][4],
                              "chg": r4(d["bars"][-1][4] / d["bars"][-2][4] - 1)})
