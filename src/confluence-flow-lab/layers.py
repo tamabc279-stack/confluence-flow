@@ -50,6 +50,40 @@ def vp_frame(df: pd.DataFrame, W: int = VP_W) -> pd.DataFrame:
     return VPM.rolling_levels(df, W, "T")[["poc", "val", "vah"]].shift(1)
 
 
+def imbalance(df: pd.DataFrame, ob: dict, bull: bool) -> str | None:
+    """IMBALANCE của OB (16/10/2026): trong nhịp đẩy (nến k … m+2, đúng cửa sổ của V2) có
+    FVG (khoảng trống giữa bóng nến 1 và bóng nến 3, MỌI cỡ) hoặc Volume Imbalance (thân nến sau nằm hẳn trên thân nến trước
+    nhưng bóng vẫn chồng — imbalance.py của order-block-lab; OB giảm đối xứng). Trả "fvg" | "vi" | "both" | None.
+    Biết đủ tại m+2: zones_for chỉ dùng OB đã ≥ LAG(3) phiên nên không nhìn trước; OB hợp lệ (FVG ≥ 1 ATR trong cùng cửa sổ) luôn có imbalance."""
+    o, h, l, c = (df[x].to_numpy(float) for x in ("o", "h", "l", "c"))
+    n = len(df)
+    k, m = ob["k"], ob["m"]
+    fvg = vi = False
+    for i in range(k, min(m, n - 3) + 1):
+        if (l[i + 2] > h[i]) if bull else (h[i + 2] < l[i]):
+            fvg = True
+            break
+    for i in range(k, min(m + 1, n - 2) + 1):
+        if bull:
+            if min(o[i + 1], c[i + 1]) > max(o[i], c[i]) and l[i + 1] <= h[i]:
+                vi = True
+                break
+        elif max(o[i + 1], c[i + 1]) < min(o[i], c[i]) and h[i + 1] >= l[i]:
+            vi = True
+            break
+    return "both" if fvg and vi else "fvg" if fvg else "vi" if vi else None
+
+
+def find_obs_imb(df: pd.DataFrame, bull: bool) -> list[dict]:
+    """OB bình thường theo tiêu chí MỚI = OB cũ (đỏ→xanh, BOS, đẩy ≥ 1,5 ATR) VÀ có imbalance. Thêm khoá "imb"."""
+    out = []
+    for ob in M.find_obs(df, bull, True):
+        kind = imbalance(df, ob, bull)
+        if kind:
+            out.append({**ob, "imb": kind})
+    return out
+
+
 def overlap(lo: float, hi: float, lvl: float, tol: float) -> bool:
     return bool(not np.isnan(lvl) and lo - tol <= lvl <= hi + tol)
 

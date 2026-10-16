@@ -12,7 +12,7 @@ import sys
 
 import numpy as np
 
-from layers import FAKE, HERE, LAG, M, ROOT, TOL, VO, VOL_X, VP_W, VPM, vp_frame, vp_tags
+from layers import FAKE, HERE, LAG, M, ROOT, TOL, VO, VOL_X, VP_W, VPM, find_obs_imb, vp_frame, vp_tags
 from m_tick import CV, DAILY, LIFE, zones_for
 import hidden   # cvd-candle-lab/hidden.py (sys.path đã được m_tick thêm): cá mập ẩn của tab Cá mập ẩn (price-path)
 
@@ -96,7 +96,7 @@ def daily_pack(sym: str, raw: dict, HID: dict) -> dict:
     obs, marks, cands = [], [], []
     stage = {"valid_ob": 0, "touched": 0, "zone_ok": 0, "alert": 0, "has_data": 0, "star": 0}
     for bull in (True, False):
-        for ob in M.find_obs(df, bull, True):
+        for ob in find_obs_imb(df, bull):
             f = VO.flags(df, ob, fv, bull)
             m = ob["m"]
             end = min(m + M.LIFE, n - 1)
@@ -148,7 +148,7 @@ def daily_pack(sym: str, raw: dict, HID: dict) -> dict:
             if end < i0:
                 continue
             obs.append({"bull": bull, "k": ob["k"] - i0, "m": m - i0, "end": end - i0, "lo": r4(ob["lo"]), "hi": r4(ob["hi"]),
-                        "valid": f["valid"], "broken": broken, "used": used, "marked": marked})
+                        "valid": f["valid"], "broken": broken, "used": used, "marked": marked, "imb": ob["imb"]})
     sw = slice(n - VP_W, n)
     tp = (df["h"] + df["l"] + df["c"]) / 3
     prof = profile_pack(df["l"].to_numpy(float)[sw], df["h"].to_numpy(float)[sw], tp.to_numpy(float)[sw],

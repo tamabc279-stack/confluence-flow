@@ -216,7 +216,7 @@ function renderDaily() {
       fill: gone ? 'none' : hexA(tk, o.valid ? .24 : .08), stroke: gone ? css('--mut') : col,
       'stroke-width': o.valid ? 2 : .8, 'stroke-dasharray': gone ? '3 3' : null}, gZ);
     const nm = `${o.bull ? 'OB tăng' : 'OB giảm'}${o.valid ? ' ✓' : ''} ${fx(o.lo)}–${fx(o.hi)}${o.used ? ' · đã dùng' : ''}`;
-    tip(r, nm + `${o.valid ? ' · HỢP LỆ' : ' · thường'}${o.broken ? ' · đã thủng' : ''}${o.used ? ' · ĐÃ DÙNG (chạm lần đầu rồi bật ra khỏi vùng)' : ''}`);
+    tip(r, nm + ` · imbalance: ${{fvg: 'FVG', vi: 'Volume Imbalance', both: 'FVG + Volume Imbalance'}[o.imb] || '—'}` + `${o.valid ? ' · HỢP LỆ' : ' · thường'}${o.broken ? ' · đã thủng' : ''}${o.used ? ' · ĐÃ DÙNG (chạm lần đầu rồi bật ra khỏi vùng)' : ''}`);
     if (o.valid && !gone) {                       // điểm giữa (50 %) của OB hợp lệ: mốc của tiêu chí cảnh báo
       const ym = y((o.lo + o.hi) / 2), bl = o.lo + D.alerts.cfg.poc_band[0] * (o.hi - o.lo), bh2 = o.lo + D.alerts.cfg.poc_band[1] * (o.hi - o.lo);
       const bb = el('rect', {x: x0, y: y(bh2), width: Math.max(2, x1 - x0), height: Math.max(1, y(bl) - y(bh2)), fill: hexA(tk, .16)}, gZ);   // dải giữa 25–75 %: POC phải nằm trong đây
@@ -616,6 +616,7 @@ function renderHow() {
   <table class="symt">
    <tr><td><i class="zb bv"></i><i class="zb bn"></i></td><td>OB tăng (vùng cầu): nến đỏ ngay trước nhịp đẩy lên mạnh. Ô <b>đậm, viền dày, nhãn ✓</b> = hợp lệ (nến xác nhận KL ≥ {{VOLX}}× TB20, có FVG ≥ 1 ATR, vùng hẹp ≤ 1,5 ATR); ô nhạt, viền mỏng = thường.</td></tr>
    <tr><td><i class="zb sv"></i><i class="zb sn"></i></td><td>OB giảm (vùng cung): nến xanh ngay trước nhịp đẩy xuống mạnh; cách đọc đậm/nhạt như trên.</td></tr>
+   <tr><td><i class="zb bn"></i></td><td><b>OB bình thường có imbalance</b>: nến k đỏ rồi xanh, có BOS, đẩy ≥ 1,5 ATR trong ≤ 3 phiên, <b>và</b> nhịp đẩy (nến k … m+2) để lại imbalance — FVG (khoảng trống giữa bóng nến 1 và bóng nến 3, mọi cỡ) hoặc Volume Imbalance (thân nến sau nằm hẳn trên thân nến trước nhưng bóng vẫn chồng; OB giảm đối xứng). Tooltip hộp OB ghi loại imbalance. OB hợp lệ luôn nằm trong nhóm này.</td></tr>
    <tr><td><i class="zb br"></i></td><td>OB đã thủng (giá đóng cửa xuyên qua vùng): ẩn mặc định, bật ô "Hiện OB đã thủng / đã dùng" để xem lại.</td></tr>
    <tr><td><i class="zb br"></i></td><td><b>OB chỉ dùng một lần</b>: sau lần chạm đầu tiên, phiên đầu tiên giá bật hẳn ra khỏi vùng (OB tăng: Low &gt; đỉnh vùng; OB giảm: High &lt; đáy vùng) thì OB đã dùng — ẩn như OB thủng, các lần quay lại test sau bỏ qua, vùng cũng không còn xuất hiện ở thẻ 15'. Giá nằm lại trong vùng nhiều phiên thì OB vẫn còn sống.</td></tr>
    <tr><td><b class="tagc buy solid">MUA</b> <b class="tagc sell solid">BÁN</b></td><td>Thẻ ngày: CẢNH BÁO — đủ 4 tiêu chí bắt buộc ①②③④ (OB hợp lệ, lần test đầu, chỉ vào nửa OB, POC trong dải giữa).</td></tr>

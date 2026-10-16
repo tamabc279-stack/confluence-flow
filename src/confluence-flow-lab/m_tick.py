@@ -22,7 +22,7 @@ import sys
 
 import numpy as np
 
-from layers import FAKE, HERE, LAG, M, ROOT, TOL, VO, VP_W, VPM, _load
+from layers import FAKE, HERE, LAG, M, ROOT, TOL, VO, VP_W, VPM, _load, find_obs_imb
 
 sys.path.insert(0, str(ROOT / "cvd-candle-lab"))
 CV = _load("cvdm", ROOT / "cvd-candle-lab" / "measure.py")
@@ -48,7 +48,7 @@ def zones_for(sym: str, day: str, shift: float = 0.0) -> list[dict]:
     fv = M.fvg_events(h, l, a)
     obs = []
     for bull in (True, False):
-        for ob in M.find_obs(df, bull, True):
+        for ob in find_obs_imb(df, bull):
             if n - 1 - ob["m"] > LIFE or n - 1 - ob["m"] < LAG:
                 continue
             if bull and (c[ob["m"] + 1:] < ob["lo"]).any():

@@ -50,3 +50,7 @@ Chạy trên máy: `"c:\Claude code\price-path\venv\Scripts\python" run.py --for
 ## Tiêu chí "OB chỉ dùng một lần" (16/10/2026)
 OB đã dùng = sau lần chạm đầu, phiên đầu tiên giá bật hẳn ra khỏi vùng (OB tăng Low > đỉnh; OB giảm High < đáy) → ẩn như OB thủng,
 không còn là vùng ở thẻ 15'. Chi tiết và số liệu trước/sau: README của lab `confluence-flow-lab`. Cảnh báo thẻ ngày không đổi.
+
+## OB bình thường phải có imbalance (16/10/2026)
+OB bình thường = OB cũ (đỏ→xanh, BOS, đẩy ≥ 1,5 ATR) + có FVG hoặc Volume Imbalance trong nhịp đẩy (nến k … m+2). Chi tiết, số liệu trước/sau:
+README của lab. `src/confluence-flow-lab/data/daily.json`, `alert_stats.json` đã đo lại theo định nghĩa mới; `daily_w60.json`, `*_v1x2.json` là biến thể cũ không có imbalance.
