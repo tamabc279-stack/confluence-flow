@@ -386,7 +386,7 @@ function renderTick() {
   const showDp = $('#t_dp').checked, byD = {};
   vb.forEach((b, i) => (byD[b[0]] = byD[b[0]] || []).push(i));
   const slot = Math.max(...Object.values(byD).map(a => a.length)) + 1;          // mỗi ngày = số nến + 1 ô trống làm vạch ngăn
-  const RM = narrow ? 80 : 66, PL = narrow ? 2 : 4, hostW = Math.max(240, host.clientWidth || 560);
+  const RM = narrow ? 100 : 80, PL = narrow ? 2 : 4, hostW = Math.max(240, host.clientWidth || 560);
   let pitch = Math.min(24, (hostW - 1 - RM - PL) / (nShow * slot)); if (pitch < 4) pitch = 4;   // < 4 px thì cho cuộn ngang
   const plotEnd = PL + nShow * slot * pitch, W = Math.ceil(plotEnd + RM), BW = pitch, cw = Math.max(2, Math.round(pitch * .72));
   const xs = new Array(vb.length), dayX = {};
@@ -395,7 +395,7 @@ function renderTick() {
     ids.forEach((i, k) => xs[i] = x0 + (k + .5) * pitch);
     dayX[d] = [x0, x0 + ids.length * pitch, x0 + slot * pitch];                  // [đầu, hết nến, hết ô ngày]
   }
-  const top = 18, hP = 280, vTop = 316, vH = 70, cTop = 396, cH = 70, H = cTop + cH + 6;
+  const top = 18, hP = 280, vTop = 332, vH = 70, cTop = 430, cH = 70, H = cTop + cH + 6;   // vTop/cTop dời xuống 16/34 px: chú thích nằm TRÊN khung, không đè đường
   let lo = Math.min(...vb.map(b => b[4])), hi = Math.max(...vb.map(b => b[3]));
   const pad = (hi - lo) * .06 || hi * .01; lo -= pad; hi += pad;
   const y = lin(hi, lo, top, top + hP);
@@ -407,7 +407,7 @@ function renderTick() {
   });
   const cp = el('clipPath', {id: 'tc'}, svg); el('rect', {x: 0, y: top, width: W, height: hP}, cp);
   const gZ = el('g', {'clip-path': 'url(#tc)'}, svg);
-  const edge = [];                                                              // thẻ mép phải: mức của ngày cuối đang xem
+  const edge = [], segLab = [];                                                 // edge: thẻ mép phải; segLab: chữ tên mức ở đầu đoạn của ngày cuối
   for (let di = start; di <= end; di++) {
     const [x0, x1, x2] = dayX[di], d = t.days[di];
     el('text', {x: x0 + 2, y: 11, class: 'lbl'}, svg, sh(d));
@@ -423,7 +423,7 @@ function renderTick() {
         const c = css('--vp'), tt = `${z.t} ngày ({{VPW}} phiên, tới hôm trước) ${fx(z.lo)}${z.P ? ' · nằm trong/sát OB cùng phía' : ''}`;
         const ln = el('line', {x1: x0, x2: x1, y1: y(z.lo), y2: y(z.lo), stroke: c, 'stroke-width': z.t === 'POC' ? 1.8 : 1.1, 'stroke-dasharray': z.t === 'POC' ? null : '4 3', opacity: z.t === 'POC' ? .95 : .75}, gZ);
         tip(ln, tt);
-        if (di === end) edge.push({y: y(z.lo), c: '--vp', txt: `${z.t} ${fx(z.lo)}`, tip: tt});
+        if (di === end) { edge.push({y: y(z.lo), c: '--vp', txt: `${z.t} {{VPW}}p ${fx(z.lo)}`, tip: tt}); segLab.push({y: y(z.lo), x: x0 + 2, txt: z.t}); }
       }
     });
     const dpd = t.dp[di];
@@ -460,6 +460,11 @@ function renderTick() {
     if (li != null) edge.push({y: y(t.cp[li].poc), c: '--cum', txt: `CD ${fx(t.cp[li].poc)}`, tip: `POC cộng dồn ${fx(t.cp[li].poc)}`});
   }
   vb.forEach((b, i) => candle(svg, xs[i], cw, y, b[2], b[3], b[4], b[5]));
+  { // tên mức (POC/VAH/VAL) ở đầu đoạn của ngày cuối; hai nhãn gần nhau thì đẩy cách ≥ 10 px
+    let prev = -99; segLab.sort((a, b) => a.y - b.y);
+    segLab.forEach(it => { it.ty = Math.max(it.y - 2, prev + 10); prev = it.ty; });
+    segLab.forEach(it => { if (it.ty > top + 8 && it.ty < top + hP) el('text', {x: it.x, y: it.ty, style: halo() + `font-size:9.5px;font-weight:700;fill:${css('--vp')}`}, svg, it.txt); });
+  }
   if ($('#t_vw').checked) {
     const byDay = {}; t.vwap.forEach(([di, m, v]) => (byDay[di] = byDay[di] || []).push([m, v]));
     const pts = {};
@@ -534,14 +539,14 @@ function renderTick() {
       ${dpd ? `<div class="sub">Profile riêng phiên ${sh(day)}: POC ${fx(dpd.poc)} · VAH ${fx(dpd.vah)} · VAL ${fx(dpd.val)}</div>` : ''}${evs}`;
   }
   select(vb.length - 1);
-  $('#tcap').innerHTML = `<span style="top:${vTop}px">KL chủ động 15' (xanh = mua, đỏ = bán) · vạch vàng = |delta cá mập|</span><span style="top:${cTop}px">CVD phiên (xám = tổng, vàng = cá mập tổng hợp) · reset mỗi phiên</span>`;
+  $('#tcap').innerHTML = `<span style="top:${vTop - 15}px">KL chủ động 15' (xanh = mua, đỏ = bán) · vạch vàng = |delta cá mập|</span><span style="top:${cTop - 15}px">CVD phiên (xám = tổng, vàng = cá mập tổng hợp) · reset mỗi phiên</span>`;
   if (narrow) $('#tprof').innerHTML = ''; else profileCol($('#tprof'), t.vp, y, H, lo, hi, D.meta.tick_days.length + ' phiên gộp');
   host.scrollLeft = host.scrollWidth;   // cuộn về cuối SAU khi cột profile bên phải đã có chiều rộng
   window.__tw = host.clientWidth;
   $('#tleg').innerHTML = `<span><b class="tagc buy solid">MUA 3/3 ★</b> <b class="tagc sell solid">BÁN 3/3 ★</b> đủ Vị trí + Dòng tiền + Nến</span>
    <span><b class="tagc buy out">MUA 2/3</b> <b class="tagc sell out">BÁN 2/3</b> chỉ để theo dõi</span><span><i class="dot"></i>chạm vùng chưa đủ điểm (bật ô)</span>
    <span><i class="zb bv"></i>OB tăng ✓ · <i class="zb bn"></i>thường</span><span><i class="zb sv"></i>OB giảm ✓ · <i class="zb sn"></i>thường</span>
-   <span><i class="ln" style="border-color:var(--vp)"></i>POC · <i class="ln" style="border-color:var(--vp);border-top-style:dashed"></i>VAH/VAL ngày {{VPW}} phiên — thẻ ở mép phải là mức của ngày cuối đang xem</span>
+   <span><i class="ln" style="border-color:var(--vp)"></i>POC · <i class="ln" style="border-color:var(--vp);border-top-style:dashed"></i>VAH/VAL của {{VPW}} phiên tới hôm trước (đổi theo từng ngày) — chữ ở đầu đoạn và thẻ "{{VPW}}p" ở mép phải là mức của ngày cuối đang xem</span>
    <span><i class="ln" style="border-color:var(--gold)"></i>VWAP phiên</span>
    <span><i class="sw" style="background:var(--vp);opacity:.4"></i>lớp mờ ở mép phải mỗi ngày = profile riêng phiên đó (POC đậm hơn)</span>
    <span><i class="ln" style="border-color:var(--pv);border-top-style:dotted"></i>mức hôm qua (thẻ Q) · <i class="ln" style="border-color:var(--cum)"></i>cộng dồn từng ngày (thẻ CD)</span>
