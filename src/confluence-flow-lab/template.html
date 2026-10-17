@@ -166,9 +166,16 @@ function profileCol(host, prof, y, H, lo, hi, title) {
     const w = prof.v[i] / mx * 64, inVA = p >= prof.val && p <= prof.vah;
     el('rect', {x: 4, y: y(p) - bh / 2, width: w, height: bh, fill: inVA ? css('--vp') : css('--mut'), opacity: inVA ? .4 : .28}, svg);
   });
-  [['POC', prof.poc, css('--vp')], ['VAH', prof.vah, css('--vp')], ['VAL', prof.val, css('--vp')]].forEach(([n, v, c]) => {
-    el('line', {x1: 0, x2: 70, y1: y(v), y2: y(v), stroke: c, 'stroke-width': n === 'POC' ? 2 : 1.2, 'stroke-dasharray': n === 'POC' ? null : '4 2'}, svg);
-    el('text', {x: 72, y: y(v) - 2, class: 'lbl', fill: c, style: 'fill:' + c}, svg, n + ' ' + fx(v));
+  // 17/10/2026: nhãn mức nằm TRONG vùng histogram (căn phải sát mép 68 px, có viền nền), tên trên vạch – giá dưới vạch,
+  // để cột số trục bên phải giữ nguyên đủ mọi giá trị; cặp sau đẩy xuống nếu chạm cặp trước
+  const lab = [['POC', prof.poc], ['VAH', prof.vah], ['VAL', prof.val]].filter(q => q[1] != null).map(([n, v]) => ({n, v, y: y(v)})).sort((a, b) => a.y - b.y);
+  let prev = -99;
+  lab.forEach(it => { it.ty = Math.max(it.y - 2, prev + 11); prev = it.ty + 12; });
+  lab.forEach(it => {
+    const c = css('--vp');
+    el('line', {x1: 0, x2: 70, y1: it.y, y2: it.y, stroke: c, 'stroke-width': it.n === 'POC' ? 2 : 1.2, 'stroke-dasharray': it.n === 'POC' ? null : '4 2'}, svg);
+    el('text', {x: 68, y: it.ty, 'text-anchor': 'end', class: 'lbl', style: halo() + `fill:${c};font-weight:700`}, svg, it.n);
+    el('text', {x: 68, y: it.ty + 12, 'text-anchor': 'end', class: 'lbl', style: halo() + `fill:${c};font-weight:600`}, svg, fx(it.v));
   });
 }
 function candle(g, x, bw, y, o, h, l, c) {
@@ -362,7 +369,7 @@ function edgeTags(svg, items, xL, w, yMin, yMax, gap = 12) {
     if (it.y0 != null) el('rect', {x: xL - 3, y: it.y0, width: 3, height: Math.max(2, it.y1 - it.y0), fill: c, opacity: .8}, svg);
     if (Math.abs(it.ty - it.y) > 1.5) el('line', {x1: xL - 3, x2: xL, y1: it.y, y2: it.ty, stroke: c, 'stroke-width': 1}, svg);
     const g = el('g', {}, svg);
-    el('rect', {x: xL, y: it.ty - 6.5, width: w, height: 13, rx: 3, fill: css('--card'), stroke: c, 'stroke-width': 1}, g);
+    el('rect', {x: xL, y: it.ty - 6.5, width: w, height: 13, rx: 3, fill: it.solid ? hexA(it.c, .18) : css('--card'), stroke: c, 'stroke-width': 1, 'stroke-dasharray': it.solid ? '2 1.5' : null}, g);
     el('text', {x: xL + w / 2, y: it.ty + 3.4, 'text-anchor': 'middle', style: `font-size:9.5px;font-weight:700;fill:${c}`}, g, it.txt);
     if (it.tip) tip(g, it.tip);
   });
@@ -386,7 +393,7 @@ function renderTick() {
   const showDp = $('#t_dp').checked, byD = {};
   vb.forEach((b, i) => (byD[b[0]] = byD[b[0]] || []).push(i));
   const slot = Math.max(...Object.values(byD).map(a => a.length)) + 1;          // mỗi ngày = số nến + 1 ô trống làm vạch ngăn
-  const RM = narrow ? 100 : 80, PL = narrow ? 2 : 4, hostW = Math.max(240, host.clientWidth || 560);
+  const RM = narrow ? 108 : 92, PL = narrow ? 2 : 4, hostW = Math.max(240, host.clientWidth || 560);
   let pitch = Math.min(24, (hostW - 1 - RM - PL) / (nShow * slot)); if (pitch < 4) pitch = 4;   // < 4 px thì cho cuộn ngang
   const plotEnd = PL + nShow * slot * pitch, W = Math.ceil(plotEnd + RM), BW = pitch, cw = Math.max(2, Math.round(pitch * .72));
   const xs = new Array(vb.length), dayX = {};
@@ -519,8 +526,16 @@ function renderTick() {
     });
     [['POC', pr.poc], ['VAH', pr.vah], ['VAL', pr.val]].forEach(([n, v]) => el('line', {x1: plotEnd + 2, x2: plotEnd + 20, y1: y(v), y2: y(v), stroke: css('--vp'), 'stroke-width': n === 'POC' ? 2 : 1, 'stroke-dasharray': n === 'POC' ? null : '3 2'}, svg));
     xTag = plotEnd + 24; wTag = RM - 26;
+    // điện thoại không có cột profile gộp → ghi POC/VAH/VAL gộp thành thẻ nền tím nhạt viền chấm (khác thẻ "40p" nền trắng)
+    [['POC', pr.poc], ['VAH', pr.vah], ['VAL', pr.val]].forEach(([n, v]) => { if (v != null) edge.push({y: y(v), c: '--vp', solid: 1, txt: `${n} gộp ${fx(v)}`, tip: `${n} profile gộp ${D.meta.tick_days.length} phiên tick ${fx(v)}`}); });
   }
-  edgeTags(svg, edge.filter(it => it.y >= top && it.y <= top + hP), xTag, wTag, top + 7, top + hP - 7);
+  // mức nằm ngoài khung giá (khung co theo nến) vẫn hiện: ghim thẻ ở mép trên/dưới, thêm ▲/▼, bỏ dây nối/vạch OB
+  edge.forEach(it => {
+    const out = it.y < top ? '▲ ' : it.y > top + hP ? '▼ ' : '';
+    if (!out) return;
+    it.txt = out + it.txt; it.y = out === '▲ ' ? top + 7 + (it.y - top) * 1e-3 : top + hP - 7 + (it.y - top - hP) * 1e-3;   // giữ thứ tự theo giá khi xếp thẻ it.y0 = null; it.tip = (it.tip || '') + (out === '▲ ' ? ' · cao hơn khung giá đang xem' : ' · thấp hơn khung giá đang xem');
+  });
+  edgeTags(svg, edge, xTag, wTag, top + 7, top + hP - 7);
 
   const selR = el('rect', {x: 0, y: top, width: BW, height: H - top, fill: 'none', stroke: css('--ink'), 'stroke-width': 1.3, 'stroke-dasharray': '3 2', 'pointer-events': 'none'}, svg);
   function select(i) {
@@ -550,7 +565,7 @@ function renderTick() {
    <span><i class="ln" style="border-color:var(--gold)"></i>VWAP phiên</span>
    <span><i class="sw" style="background:var(--vp);opacity:.4"></i>lớp mờ ở mép phải mỗi ngày = profile riêng phiên đó (POC đậm hơn)</span>
    <span><i class="ln" style="border-color:var(--pv);border-top-style:dotted"></i>mức hôm qua (thẻ Q) · <i class="ln" style="border-color:var(--cum)"></i>cộng dồn từng ngày (thẻ CD)</span>
-   <span>${narrow ? 'histogram mảnh ngoài cùng bên phải' : 'cột phải ngoài cùng'} = profile gộp ${D.meta.tick_days.length} phiên tick</span>
+   <span>${narrow ? 'histogram mảnh ngoài cùng bên phải (thẻ nền tím viền chấm "gộp" = POC/VAH/VAL của nó)' : 'cột phải ngoài cùng'} = profile gộp ${D.meta.tick_days.length} phiên tick</span>
    <span><b>Chạm một nến</b> để xem chi tiết ở khung bên dưới</span>`;
 }
 
