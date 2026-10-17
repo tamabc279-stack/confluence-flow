@@ -69,6 +69,8 @@ th{color:var(--mut);font-weight:600}
 .starb{display:inline-block;width:16px;height:16px;line-height:16px;text-align:center;border-radius:50%;background:var(--star);color:#fff;font-size:10px;font-weight:700;border:1.5px solid var(--card);margin-left:-5px;vertical-align:8px}
 .symt td{padding:6px 8px;vertical-align:middle}.symt td:first-child{white-space:nowrap}.symt td:last-child{text-align:left;white-space:normal}
 h3{font-size:14px;margin:14px 0 6px}
+.seg{border:1px solid var(--line);background:var(--card);color:var(--ink);border-radius:7px;padding:4px 10px;font:inherit;font-size:13px;cursor:pointer}.seg.on{background:var(--acc);border-color:var(--acc);color:#fff}.seg:disabled{opacity:.35;cursor:default}
+.info{border:1px solid var(--line);border-radius:8px;padding:6px 10px;margin:8px 0 4px;background:var(--bg);font-size:12.5px;line-height:1.55;min-height:96px}.info .sub{font-size:12px}
 </style>
 </head>
 <body>
@@ -108,7 +110,9 @@ h3{font-size:14px;margin:14px 0 6px}
         <label><input type="checkbox" id="t_yd"> Mức hôm qua</label>
         <label><input type="checkbox" id="t_cu"> Cộng dồn từng ngày</label>
       </div>
+      <div class="tg" id="tctl"><span>Xem:</span><button class="seg" data-n="1">1 ngày</button><button class="seg" data-n="2">2</button><button class="seg" data-n="3">3</button><button class="seg" data-n="5">5</button><button class="seg" data-n="0">Tất cả</button><button class="seg" id="tprev" title="lùi 1 ngày">◀</button><button class="seg" id="tnext" title="tới 1 ngày">▶</button><span class="sub" id="trange"></span></div>
       <div class="chart"><div class="pos"><div class="scroll" id="tscroll"></div><div class="cap" id="tcap"></div></div><div id="tprof"></div></div>
+      <div class="info" id="tinfo"></div>
       <div class="leg" id="tleg"></div>
     </div>
   </div>
@@ -188,6 +192,7 @@ function tag(g, x, yEdge, up, text, solid, isBuy, fs, tipText, star) {
     el('text', {x: x + w / 2, y: yBody + 3.6, 'text-anchor': 'middle', style: 'font-size:10px;font-weight:700;fill:#fff'}, grp, '★');
   }
   if (tipText) tip(grp, tipText);
+  return grp;
 }
 
 /* ---------------------------------------------------------------- nến ngày */
@@ -337,72 +342,114 @@ function renderDaily() {
 }
 
 /* ---------------------------------------------------------------- nến 15' */
+// 17/10/2026 (làm cho điện thoại): chỉ vẽ N ngày gần nhất (1/2/3/5/tất cả, nút ◀ ▶ dời cửa sổ), trục giá co theo các ngày đang xem,
+// nến tự giãn vừa bề rộng (không còn khoảng trống riêng cho profile), profile mỗi ngày là lớp mờ ở mép phải ngày đó,
+// mức VP/OB ghi thành thẻ ở mép phải khung, chạm nến → khung thông tin cố định (điện thoại không có rê chuột).
+let TN = 2, TBACK = 0;                         // TN: số ngày xem (0 = tất cả); TBACK: lùi bao nhiêu ngày so với phiên cuối
+try { const v = localStorage.getItem('cf_tn'); if (v != null && ['0', '1', '2', '3', '5'].includes(v)) TN = +v; } catch (e) {}
+function tSetN(n) { TN = n; TBACK = 0; try { localStorage.setItem('cf_tn', String(n)); } catch (e) {} renderTick(); }
+function tMove(k) { TBACK = Math.max(0, TBACK + k); renderTick(); }
+
+// Xếp thẻ ở mép phải: giữ khoảng cách tối thiểu `gap`, kéo dây nối về đúng mức giá.
+function edgeTags(svg, items, xL, w, yMin, yMax, gap = 12) {
+  items.sort((a, b) => a.y - b.y);
+  let prev = yMin - gap;
+  items.forEach(it => { it.ty = Math.max(it.y, prev + gap); prev = it.ty; });
+  let lim = yMax;
+  for (let i = items.length - 1; i >= 0; i--) { items[i].ty = Math.min(items[i].ty, lim); lim = items[i].ty - gap; }
+  items.forEach(it => {
+    const c = css(it.c);
+    if (it.y0 != null) el('rect', {x: xL - 3, y: it.y0, width: 3, height: Math.max(2, it.y1 - it.y0), fill: c, opacity: .8}, svg);
+    if (Math.abs(it.ty - it.y) > 1.5) el('line', {x1: xL - 3, x2: xL, y1: it.y, y2: it.ty, stroke: c, 'stroke-width': 1}, svg);
+    const g = el('g', {}, svg);
+    el('rect', {x: xL, y: it.ty - 6.5, width: w, height: 13, rx: 3, fill: css('--card'), stroke: c, 'stroke-width': 1}, g);
+    el('text', {x: xL + w / 2, y: it.ty + 3.4, 'text-anchor': 'middle', style: `font-size:9.5px;font-weight:700;fill:${c}`}, g, it.txt);
+    if (it.tip) tip(g, it.tip);
+  });
+}
+
 function renderTick() {
   const t = D.sym[SYM].t, host = $('#tscroll');
-  if (!t) { host.innerHTML = '<div class="sub" style="padding:20px">Mã này không có tick thật trong ' + D.meta.tick_days.length + ' phiên (hoặc thiếu chiều mua/bán).</div>'; $('#tprof').innerHTML = ''; $('#tleg').innerHTML = ''; return; }
-  const showDp = $('#t_dp').checked, PW = 52, bars = t.bars, BW = 12, GAP = showDp ? 76 : 22, PL = 6;
-  const xs = []; let cur = PL, lastDay = -1; const dayX = {};
-  bars.forEach((b, i) => {
-    if (b[0] !== lastDay) { if (lastDay >= 0) cur += GAP; dayX[b[0]] = [cur, cur]; lastDay = b[0]; }
-    xs.push(cur + BW / 2); cur += BW; dayX[b[0]][1] = cur;
-  });
-  const W = cur + 14 + (showDp ? PW + 10 : 0), top = 18, hP = 280, vTop = 316, vH = 70, cTop = 396, cH = 70, H = cTop + cH + 6;
-  let lo = Math.min(...bars.map(b => b[4])), hi = Math.max(...bars.map(b => b[3]));
-  const pad = (hi - lo) * .06; lo -= pad; hi += pad;
+  if (!t) { host.innerHTML = '<div class="sub" style="padding:20px">Mã này không có tick thật trong ' + D.meta.tick_days.length + ' phiên (hoặc thiếu chiều mua/bán).</div>'; $('#tprof').innerHTML = ''; $('#tleg').innerHTML = ''; $('#tinfo').innerHTML = ''; $('#tctl').style.display = 'none'; return; }
+  $('#tctl').style.display = '';
+  const nD = t.days.length, nShow = TN === 0 ? nD : Math.min(TN, nD);
+  TBACK = Math.max(0, Math.min(TBACK, nD - nShow));
+  const end = nD - 1 - TBACK, start = end - nShow + 1;
+  document.querySelectorAll('#tctl [data-n]').forEach(b => b.classList.toggle('on', +b.dataset.n === TN));
+  $('#tprev').disabled = start <= 0; $('#tnext').disabled = end >= nD - 1;
+  $('#trange').textContent = nShow === 1 ? sh(t.days[end]) : sh(t.days[start]) + ' → ' + sh(t.days[end]);
+
+  const narrow = host.closest('.chart').clientWidth < 640;
+  $('#tprof').style.display = narrow ? 'none' : '';
+  const vb = t.bars.filter(b => b[0] >= start && b[0] <= end);
+  if (!vb.length) { host.innerHTML = '<div class="sub" style="padding:20px">Không có nến trong các ngày này.</div>'; return; }
+  const showDp = $('#t_dp').checked, byD = {};
+  vb.forEach((b, i) => (byD[b[0]] = byD[b[0]] || []).push(i));
+  const slot = Math.max(...Object.values(byD).map(a => a.length)) + 1;          // mỗi ngày = số nến + 1 ô trống làm vạch ngăn
+  const RM = narrow ? 80 : 66, PL = narrow ? 2 : 4, hostW = Math.max(240, host.clientWidth || 560);
+  let pitch = Math.min(24, (hostW - 1 - RM - PL) / (nShow * slot)); if (pitch < 4) pitch = 4;   // < 4 px thì cho cuộn ngang
+  const plotEnd = PL + nShow * slot * pitch, W = Math.ceil(plotEnd + RM), BW = pitch, cw = Math.max(2, Math.round(pitch * .72));
+  const xs = new Array(vb.length), dayX = {};
+  for (let d = start; d <= end; d++) {
+    const x0 = PL + (d - start) * slot * pitch, ids = byD[d] || [];
+    ids.forEach((i, k) => xs[i] = x0 + (k + .5) * pitch);
+    dayX[d] = [x0, x0 + ids.length * pitch, x0 + slot * pitch];                  // [đầu, hết nến, hết ô ngày]
+  }
+  const top = 18, hP = 280, vTop = 316, vH = 70, cTop = 396, cH = 70, H = cTop + cH + 6;
+  let lo = Math.min(...vb.map(b => b[4])), hi = Math.max(...vb.map(b => b[3]));
+  const pad = (hi - lo) * .06 || hi * .01; lo -= pad; hi += pad;
   const y = lin(hi, lo, top, top + hP);
   host.innerHTML = '';
   const svg = el('svg', {width: W, height: H}, host);
-  ticks(lo, hi, 6).forEach(v => el('line', {x1: 0, x2: W, y1: y(v), y2: y(v), stroke: css('--line')}, svg));
+  ticks(lo, hi, 6).forEach(v => {
+    el('line', {x1: 0, x2: plotEnd, y1: y(v), y2: y(v), stroke: css('--line')}, svg);
+    if (narrow) el('text', {x: 2, y: y(v) - 2, class: 'lbl', style: halo()}, svg, fx(v));   // trục giá nằm trong khung (cột profile bị ẩn)
+  });
   const cp = el('clipPath', {id: 'tc'}, svg); el('rect', {x: 0, y: top, width: W, height: hP}, cp);
-  const gZ = el('g', {'clip-path': 'url(#tc)'}, svg), gLab = el('g', {'clip-path': 'url(#tc)'});
-  t.days.forEach((d, di) => {
-    const [x0, x1] = dayX[di] || [0, 0];
-    el('text', {x: x0, y: 11, class: 'lbl'}, svg, sh(d));
-    el('line', {x1: x0 - GAP / 2, x2: x0 - GAP / 2, y1: top, y2: H - 4, stroke: css('--line'), 'stroke-dasharray': '2 3'}, svg);
-    let lastLy = -99;
+  const gZ = el('g', {'clip-path': 'url(#tc)'}, svg);
+  const edge = [];                                                              // thẻ mép phải: mức của ngày cuối đang xem
+  for (let di = start; di <= end; di++) {
+    const [x0, x1, x2] = dayX[di], d = t.days[di];
+    el('text', {x: x0 + 2, y: 11, class: 'lbl'}, svg, sh(d));
+    el('line', {x1: x0, x2: x0, y1: top, y2: H - 4, stroke: css('--line'), 'stroke-dasharray': '2 3'}, svg);
     (t.zones[di] || []).forEach(z => {
       if (z.t === 'OB' && $('#t_ob').checked) {
         const up = z.role === 'buy', tk = up ? '--buy' : '--sell', col = css(tk), yt = y(z.hi), hh = Math.max(2, y(z.lo) - y(z.hi));
         const nm = `${up ? 'OB tăng' : 'OB giảm'}${z.valid ? ' ✓' : ''} ${fx(z.lo)}–${fx(z.hi)}`;
-        const r = el('rect', {x: x0, y: yt, width: x1 - x0, height: hh, fill: hexA(tk, z.valid ? .22 : .08), stroke: col, 'stroke-width': z.valid ? 2 : .8}, gZ);
+        const r = el('rect', {x: x0, y: yt, width: Math.max(2, x1 - x0), height: hh, fill: hexA(tk, z.valid ? .22 : .08), stroke: col, 'stroke-width': z.valid ? 2 : .8}, gZ);
         tip(r, nm + `${z.valid ? ' · HỢP LỆ' : ' · thường'}${z.P ? ' · chồng mức VP' : ''}`);
-        if (di === t.days.length - 1) {            // nhãn chữ chỉ ở phiên cuối; lệch xuống nếu trùng nhãn trước
-          let ly = hh >= 15 ? yt + 10 : yt - 3; if (Math.abs(ly - lastLy) < 11) ly = lastLy + 11; lastLy = ly;
-          el('text', {x: x0 + 3, y: ly, class: 'lbl', style: halo() + `fill:${col};font-weight:${z.valid ? 700 : 500}`}, gLab, nm);
-        }
+        if (di === end && z.valid) edge.push({y: (yt + y(z.lo)) / 2, y0: yt, y1: y(z.lo), c: tk, txt: `OB${up ? '↑' : '↓'} ✓`, tip: nm});
       } else if (z.t !== 'OB' && $('#t_vp').checked && !(z.t === 'POC' && z.role === 'sell')) {
-        const c = css('--vp');
+        const c = css('--vp'), tt = `${z.t} ngày ({{VPW}} phiên, tới hôm trước) ${fx(z.lo)}${z.P ? ' · nằm trong/sát OB cùng phía' : ''}`;
         const ln = el('line', {x1: x0, x2: x1, y1: y(z.lo), y2: y(z.lo), stroke: c, 'stroke-width': z.t === 'POC' ? 1.8 : 1.1, 'stroke-dasharray': z.t === 'POC' ? null : '4 3', opacity: z.t === 'POC' ? .95 : .75}, gZ);
-        tip(ln, `${z.t} ngày ({{VPW}} phiên, tới hôm trước) ${fx(z.lo)}${z.P ? ' · nằm trong/sát OB cùng phía' : ''}`);
-        if (di === t.days.length - 1) el('text', {x: x1 - 2, y: y(z.lo) - 2, class: 'lbl', 'text-anchor': 'end', style: halo() + 'fill:' + c}, gLab, `${z.t} ngày {{VPW}}p ${fx(z.lo)}`);
+        tip(ln, tt);
+        if (di === end) edge.push({y: y(z.lo), c: '--vp', txt: `${z.t} ${fx(z.lo)}`, tip: tt});
       }
     });
     const dpd = t.dp[di];
-    if (showDp && dpd) {                       // profile RIÊNG phiên này, ở mép phải cụm nến
-      const mx = Math.max(...dpd.v) || 1, bh = Math.max(2, Math.abs(y(dpd.p[0]) - y(dpd.p[1])) - .5), xb = x1 + 4;
+    if (showDp && dpd) {                       // profile RIÊNG phiên này: lớp mờ bám mép phải ô ngày, nằm dưới nến
+      const mx = Math.max(...dpd.v) || 1, bh = Math.max(2, Math.abs(y(dpd.p[0]) - y(dpd.p[1])) - .5), pw = Math.max(18, (x2 - x0) * .32);
       dpd.p.forEach((pp, k) => {
-        const inVA = pp >= dpd.val && pp <= dpd.vah, isPoc = Math.abs(pp - dpd.poc) < (dpd.p[1] - dpd.p[0]) / 2 + 1e-9;
-        const r = el('rect', {x: xb, y: y(pp) - bh / 2, width: Math.max(1, dpd.v[k] / mx * PW), height: bh, fill: inVA || isPoc ? css('--vp') : css('--mut'), opacity: isPoc ? .95 : inVA ? .38 : .3}, svg);
+        const inVA = pp >= dpd.val && pp <= dpd.vah, isPoc = Math.abs(pp - dpd.poc) < (dpd.p[1] - dpd.p[0]) / 2 + 1e-9, w = Math.max(1, dpd.v[k] / mx * pw);
+        const r = el('rect', {x: x2 - 1 - w, y: y(pp) - bh / 2, width: w, height: bh, fill: inVA || isPoc ? css('--vp') : css('--mut'), opacity: isPoc ? .6 : inVA ? .26 : .18}, svg);
         tip(r, `Phiên ${sh(d)} · giá ${fx(pp)} · KL ${big(dpd.v[k])}`);
       });
-      [['VAH', dpd.vah], ['VAL', dpd.val]].forEach(([n, v]) => { const l2 = el('line', {x1: xb, x2: xb + PW + 4, y1: y(v), y2: y(v), stroke: css('--vp'), 'stroke-width': 1.2, 'stroke-dasharray': '3 2'}, svg); tip(l2, `${n} phiên ${sh(d)} ${fx(v)}`); });
-      el('text', {x: xb, y: y(dpd.poc) - 3, class: 'lbl', style: 'fill:' + css('--vp') + ';font-weight:600'}, svg, 'POC ' + fx(dpd.poc));
     }
     const yd = t.dp[di - 1];
-    if ($('#t_yd').checked && di >= 1 && yd) {  // mức của phiên TRƯỚC kéo sang phiên này
+    if ($('#t_yd').checked && di >= 1 && yd) {  // mức của phiên TRƯỚC kéo sang phiên này (số liệu ở khung thông tin)
       [['POC', yd.poc], ['VAH', yd.vah], ['VAL', yd.val]].forEach(([n, v]) => {
         const l2 = el('line', {x1: x0, x2: x1, y1: y(v), y2: y(v), stroke: css('--pv'), 'stroke-width': n === 'POC' ? 1.8 : 1.2, 'stroke-dasharray': '2 3'}, svg);
         tip(l2, `${n} phiên ${sh(t.days[di - 1])} (hôm qua) ${fx(v)}`);
       });
-      el('text', {x: x0 + 2, y: y(yd.poc) - 3, class: 'lbl', style: 'fill:' + css('--pv')}, svg, 'POC hôm qua ' + fx(yd.poc));
+      if (di === end && yd.poc != null) edge.push({y: y(yd.poc), c: '--pv', txt: `Q ${fx(yd.poc)}`, tip: `POC phiên ${sh(t.days[di - 1])} (hôm qua) ${fx(yd.poc)}`});
     }
-  });
+  }
   if ($('#t_cu').checked) {                     // cộng dồn từ phiên đầu tới hết mỗi ngày: đường bậc thang
     const dis = t.days.map((_, i) => i).filter(i => t.cp[i] && dayX[i]);
     [['poc', css('--cum'), 2, null], ['vah', css('--cum'), 1.2, '5 3'], ['val', css('--cum'), 1.2, '5 3']].forEach(([k, col, wd, da]) => {
       const pts = [];
       dis.forEach((i, j) => {
-        const yy = y(t.cp[i][k]), [a0, a1] = dayX[i];
+        const yy = y(t.cp[i][k]), a0 = dayX[i][0], a1 = dayX[i][1];
         pts.push([a0, yy], [a1, yy]);
         if (j < dis.length - 1) { const xm = (a1 + dayX[dis[j + 1]][0]) / 2, yn = y(t.cp[dis[j + 1]][k]); pts.push([xm, yy], [xm, yn]); }
       });
@@ -410,62 +457,96 @@ function renderTick() {
       tip(pl, `${k.toUpperCase()} cộng dồn: ` + dis.map(i => `${sh(t.days[i])} ${fx(t.cp[i][k])}`).join(' → '));
     });
     const li = dis[dis.length - 1];
-    if (li != null) el('text', {x: dayX[li][0] + 2, y: y(t.cp[li].poc) + 11, class: 'lbl', style: 'fill:' + css('--cum')}, svg, 'POC cộng dồn ' + fx(t.cp[li].poc));
+    if (li != null) edge.push({y: y(t.cp[li].poc), c: '--cum', txt: `CD ${fx(t.cp[li].poc)}`, tip: `POC cộng dồn ${fx(t.cp[li].poc)}`});
   }
-  bars.forEach((b, i) => {
-    candle(svg, xs[i], BW - 4, y, b[2], b[3], b[4], b[5]);
-    const dl = b[6] - b[7], wl = b[8] - b[9];
-    const r = el('rect', {x: xs[i] - BW / 2, y: top, width: BW, height: H - top, fill: 'transparent'}, svg);
-    tip(r, `${sh(t.days[b[0]])} ${mm(b[1])}  O ${fx(b[2])} H ${fx(b[3])} L ${fx(b[4])} C ${fx(b[5])}\nMua CĐ ${big(b[6])} · Bán CĐ ${big(b[7])} · Delta ${big(dl)} (${((dl) / ((b[6] + b[7]) || 1) * 100).toFixed(0)}%)\nCá mập mua ${big(b[8])} · bán ${big(b[9])}`);
-  });
-  svg.appendChild(gLab);
+  vb.forEach((b, i) => candle(svg, xs[i], cw, y, b[2], b[3], b[4], b[5]));
   if ($('#t_vw').checked) {
     const byDay = {}; t.vwap.forEach(([di, m, v]) => (byDay[di] = byDay[di] || []).push([m, v]));
     const pts = {};
-    bars.forEach((b, i) => {
+    vb.forEach((b, i) => {
       const arr = byDay[b[0]] || []; let v = null;
       for (const [m, vv] of arr) { if (m < b[1] + 15) v = vv; else break; }
       if (v != null) (pts[b[0]] = pts[b[0]] || []).push(xs[i] + ',' + y(v));
     });
     Object.values(pts).forEach(p => el('polyline', {points: p.join(' '), fill: 'none', stroke: css('--gold'), 'stroke-width': 1.5}, svg));
   }
-  const idx = {}; bars.forEach((b, i) => idx[b[0] + '|' + b[1]] = i);
+  // vùng chạm + vạch chọn: vẽ TRƯỚC thẻ MUA/BÁN để thẻ nằm trên, nhưng thẻ cũng bấm được
+  const hits = vb.map((b, i) => {
+    const r = el('rect', {x: xs[i] - BW / 2, y: top, width: BW, height: H - top, fill: 'transparent', style: 'cursor:pointer'}, svg);
+    const dl = b[6] - b[7];
+    tip(r, `${sh(t.days[b[0]])} ${mm(b[1])}  O ${fx(b[2])} H ${fx(b[3])} L ${fx(b[4])} C ${fx(b[5])}\nMua CĐ ${big(b[6])} · Bán CĐ ${big(b[7])} · Delta ${big(dl)} (${((dl) / ((b[6] + b[7]) || 1) * 100).toFixed(0)}%)\nCá mập mua ${big(b[8])} · bán ${big(b[9])}`);
+    r.addEventListener('click', () => select(i));
+    return r;
+  });
+  const idx = {}; vb.forEach((b, i) => idx[b[0] + '|' + b[1]] = i);
   t.ev.forEach(e => {
     const i = idx[e.di + '|' + e.m]; if (i == null) return;
-    const s = (e.P ? 1 : 0) + (e.F ? 1 : 0) + (e.K ? 1 : 0), b = bars[i], up = e.side === 'buy', sd = up ? 'MUA' : 'BÁN';
+    const s = (e.P ? 1 : 0) + (e.F ? 1 : 0) + (e.K ? 1 : 0), b = vb[i], up = e.side === 'buy', sd = up ? 'MUA' : 'BÁN';
     const txt = `${up ? 'MUA' : 'BÁN'} ${s}/3 — Vị trí ${e.P ? '✓' : '✗'} · Dòng tiền ${e.F ? '✓' : '✗'} · Nến ${e.K ? '✓' : '✗'}\nVùng ${e.types.join('+')} ${fx(e.lo)}–${fx(e.hi)}${e.valid ? ' (OB hợp lệ)' : ''}\n${sh(t.days[e.di])} ${mm(e.m)}`;
-    if (s >= 2 && $('#t_ev').checked) tag(svg, xs[i], up ? y(b[4]) : y(b[3]), up, s === 3 ? `${sd} 3/3 ★` : `${sd} 2/3`, s === 3, up, s === 3 ? 11.5 : 10, txt);
+    if (s >= 2 && $('#t_ev').checked) { const g = tag(svg, xs[i], up ? y(b[4]) : y(b[3]), up, s === 3 ? `${sd} 3/3 ★` : `${sd} 2/3`, s === 3, up, s === 3 ? 11.5 : 10, txt); g.addEventListener('click', () => select(i)); }
     else if (s < 2 && $('#t_dot').checked) { const c = el('circle', {cx: xs[i], cy: up ? y(b[4]) + 8 : y(b[3]) - 8, r: 3.2, fill: css('--dot'), stroke: '#000', 'stroke-width': .8}, svg); tip(c, txt); }
   });
-  const dls = bars.map(b => b[6] - b[7]), dm = Math.max(1, ...dls.map(Math.abs));
-  const vmx = Math.max(...bars.map(b => b[6] + b[7])) || 1, vy = lin(0, vmx, vTop + vH, vTop);
-  bars.forEach((b, i) => {
-    const base = vTop + vH, hw = (BW - 4) / 2;
+  const vmx = Math.max(...vb.map(b => b[6] + b[7])) || 1, vy = lin(0, vmx, vTop + vH, vTop);
+  vb.forEach((b, i) => {
+    const base = vTop + vH, hw = Math.max(1, cw / 2);
     el('rect', {x: xs[i] - hw, y: vy(b[6]), width: hw, height: base - vy(b[6]), fill: css('--up'), opacity: .7}, svg);
     el('rect', {x: xs[i], y: vy(b[7]), width: hw, height: base - vy(b[7]), fill: css('--dn'), opacity: .7}, svg);
     const wl = b[8] - b[9];
     if (wl) el('line', {x1: xs[i] - hw, x2: xs[i] + hw, y1: vy(Math.min(Math.abs(wl), vmx)), y2: vy(Math.min(Math.abs(wl), vmx)), stroke: css('--gold'), 'stroke-width': 2}, svg);
   });
-  const cd = [], cw = []; let a = 0, w = 0, ld = -1;
-  bars.forEach(b => { if (b[0] !== ld) { ld = b[0]; a = 0; w = 0; } a += b[6] - b[7]; w += b[8] - b[9]; cd.push(a); cw.push(w); });
-  const cm = Math.max(1, ...cd.map(Math.abs), ...cw.map(Math.abs)), cy = lin(-cm, cm, cTop + cH, cTop);
-  el('line', {x1: 0, x2: W, y1: cy(0), y2: cy(0), stroke: css('--line')}, svg);
+  const cd = [], cwh = []; let a = 0, w = 0, ld = -1;
+  vb.forEach(b => { if (b[0] !== ld) { ld = b[0]; a = 0; w = 0; } a += b[6] - b[7]; w += b[8] - b[9]; cd.push(a); cwh.push(w); });
+  const cm = Math.max(1, ...cd.map(Math.abs), ...cwh.map(Math.abs)), cy = lin(-cm, cm, cTop + cH, cTop);
+  el('line', {x1: 0, x2: plotEnd, y1: cy(0), y2: cy(0), stroke: css('--line')}, svg);
   const seg = (arr, col) => { let cur = [], ldd = -1; const out = [];
-    arr.forEach((v, i) => { if (bars[i][0] !== ldd) { if (cur.length) out.push(cur); cur = []; ldd = bars[i][0]; } cur.push(xs[i] + ',' + cy(v)); });
+    arr.forEach((v, i) => { if (vb[i][0] !== ldd) { if (cur.length) out.push(cur); cur = []; ldd = vb[i][0]; } cur.push(xs[i] + ',' + cy(v)); });
     if (cur.length) out.push(cur);
     out.forEach(p => el('polyline', {points: p.join(' '), fill: 'none', stroke: col, 'stroke-width': 1.6}, svg)); };
-  seg(cd, css('--mut')); seg(cw, css('--gold'));
+  seg(cd, css('--mut')); seg(cwh, css('--gold'));
+
+  // mép phải: (điện thoại) profile gộp N phiên thành histogram mảnh + các thẻ mức giá
+  let xTag = plotEnd + 4, wTag = RM - 6;
+  if (narrow && t.vp) {
+    const pr = t.vp, mx = Math.max(...pr.v) || 1, bh = Math.max(2, Math.abs(y(pr.p[0]) - y(pr.p[1])) - 1);
+    pr.p.forEach((p, k) => {
+      const inVA = p >= pr.val && p <= pr.vah, r = el('rect', {x: plotEnd + 2, y: y(p) - bh / 2, width: Math.max(1, pr.v[k] / mx * 16), height: bh, fill: inVA ? css('--vp') : css('--mut'), opacity: inVA ? .4 : .26}, svg);
+      tip(r, `Gộp ${D.meta.tick_days.length} phiên · giá ${fx(p)} · KL ${big(pr.v[k])}`);
+    });
+    [['POC', pr.poc], ['VAH', pr.vah], ['VAL', pr.val]].forEach(([n, v]) => el('line', {x1: plotEnd + 2, x2: plotEnd + 20, y1: y(v), y2: y(v), stroke: css('--vp'), 'stroke-width': n === 'POC' ? 2 : 1, 'stroke-dasharray': n === 'POC' ? null : '3 2'}, svg));
+    xTag = plotEnd + 24; wTag = RM - 26;
+  }
+  edgeTags(svg, edge.filter(it => it.y >= top && it.y <= top + hP), xTag, wTag, top + 7, top + hP - 7);
+
+  const selR = el('rect', {x: 0, y: top, width: BW, height: H - top, fill: 'none', stroke: css('--ink'), 'stroke-width': 1.3, 'stroke-dasharray': '3 2', 'pointer-events': 'none'}, svg);
+  function select(i) {
+    const b = vb[i], d = b[0], dl = b[6] - b[7], day = t.days[d], zs = t.zones[d] || [], dpd = t.dp[d];
+    selR.setAttribute('x', xs[i] - BW / 2);
+    const lv = zs.filter(z => z.t !== 'OB' && !(z.t === 'POC' && z.role === 'sell')).map(z => `${z.t} ${fx(z.lo)}`).join(' · ');
+    const ob = zs.filter(z => z.t === 'OB' && z.valid).map(z => `${z.role === 'buy' ? 'tăng' : 'giảm'} ${fx(z.lo)}–${fx(z.hi)}`).join(', ');
+    const evs = t.ev.filter(e => e.di === d && e.m === b[1]).map(e => {
+      const s = (e.P ? 1 : 0) + (e.F ? 1 : 0) + (e.K ? 1 : 0);
+      return `<div><b class="tagc ${e.side === 'buy' ? 'buy' : 'sell'} ${s === 3 ? 'solid' : 'out'}">${e.side === 'buy' ? 'MUA' : 'BÁN'} ${s}/3</b> Vị trí ${e.P ? '✓' : '✗'} · Dòng tiền ${e.F ? '✓' : '✗'} · Nến ${e.K ? '✓' : '✗'} — vùng ${e.types.join('+')} ${fx(e.lo)}–${fx(e.hi)}${e.valid ? ' (OB hợp lệ)' : ''}</div>`;
+    }).join('');
+    $('#tinfo').innerHTML = `<div><b>${sh(day)} ${mm(b[1])}</b> · O ${fx(b[2])} · H ${fx(b[3])} · L ${fx(b[4])} · C <b>${fx(b[5])}</b></div>
+      <div>Mua CĐ ${big(b[6])} · Bán CĐ ${big(b[7])} · Delta <b class="${dl >= 0 ? 'ok' : 'bad'}">${big(dl)}</b> (${(dl / ((b[6] + b[7]) || 1) * 100).toFixed(0)} %)</div>
+      <div>Cá mập mua ${big(b[8])} · bán ${big(b[9])} · ròng <b class="${b[8] - b[9] >= 0 ? 'ok' : 'bad'}">${big(b[8] - b[9])}</b></div>
+      <div class="sub">Mức ngày {{VPW}}p: ${lv || '—'}${ob ? ' · OB hợp lệ: ' + ob : ''}</div>
+      ${dpd ? `<div class="sub">Profile riêng phiên ${sh(day)}: POC ${fx(dpd.poc)} · VAH ${fx(dpd.vah)} · VAL ${fx(dpd.val)}</div>` : ''}${evs}`;
+  }
+  select(vb.length - 1);
   $('#tcap').innerHTML = `<span style="top:${vTop}px">KL chủ động 15' (xanh = mua, đỏ = bán) · vạch vàng = |delta cá mập|</span><span style="top:${cTop}px">CVD phiên (xám = tổng, vàng = cá mập tổng hợp) · reset mỗi phiên</span>`;
-  profileCol($('#tprof'), t.vp, y, H, lo, hi, D.meta.tick_days.length + ' phiên gộp');
+  if (narrow) $('#tprof').innerHTML = ''; else profileCol($('#tprof'), t.vp, y, H, lo, hi, D.meta.tick_days.length + ' phiên gộp');
   host.scrollLeft = host.scrollWidth;   // cuộn về cuối SAU khi cột profile bên phải đã có chiều rộng
+  window.__tw = host.clientWidth;
   $('#tleg').innerHTML = `<span><b class="tagc buy solid">MUA 3/3 ★</b> <b class="tagc sell solid">BÁN 3/3 ★</b> đủ Vị trí + Dòng tiền + Nến</span>
    <span><b class="tagc buy out">MUA 2/3</b> <b class="tagc sell out">BÁN 2/3</b> chỉ để theo dõi</span><span><i class="dot"></i>chạm vùng chưa đủ điểm (bật ô)</span>
    <span><i class="zb bv"></i>OB tăng ✓ · <i class="zb bn"></i>thường</span><span><i class="zb sv"></i>OB giảm ✓ · <i class="zb sn"></i>thường</span>
-   <span><i class="ln" style="border-color:var(--vp)"></i>POC · <i class="ln" style="border-color:var(--vp);border-top-style:dashed"></i>VAH/VAL ngày {{VPW}} phiên (nhãn ở phiên cuối)</span>
+   <span><i class="ln" style="border-color:var(--vp)"></i>POC · <i class="ln" style="border-color:var(--vp);border-top-style:dashed"></i>VAH/VAL ngày {{VPW}} phiên — thẻ ở mép phải là mức của ngày cuối đang xem</span>
    <span><i class="ln" style="border-color:var(--gold)"></i>VWAP phiên</span>
-   <span><i class="sw" style="background:var(--vp);opacity:.45"></i>histogram mép phải mỗi phiên = profile riêng phiên đó</span>
-   <span><i class="ln" style="border-color:var(--pv);border-top-style:dotted"></i>mức hôm qua</span><span><i class="ln" style="border-color:var(--cum)"></i>cộng dồn từng ngày</span>
-   <span>cột phải ngoài cùng = profile gộp ${D.meta.tick_days.length} phiên tick</span>`;
+   <span><i class="sw" style="background:var(--vp);opacity:.4"></i>lớp mờ ở mép phải mỗi ngày = profile riêng phiên đó (POC đậm hơn)</span>
+   <span><i class="ln" style="border-color:var(--pv);border-top-style:dotted"></i>mức hôm qua (thẻ Q) · <i class="ln" style="border-color:var(--cum)"></i>cộng dồn từng ngày (thẻ CD)</span>
+   <span>${narrow ? 'histogram mảnh ngoài cùng bên phải' : 'cột phải ngoài cùng'} = profile gộp ${D.meta.tick_days.length} phiên tick</span>
+   <span><b>Chạm một nến</b> để xem chi tiết ở khung bên dưới</span>`;
 }
 
 /* ---------------------------------------------------------------- danh sách + tóm tắt */
@@ -639,10 +720,12 @@ document.querySelectorAll('.tab').forEach(b => b.onclick = () => {
 });
 ['d_ob', 'd_vp', 'd_mk', 'd_nvp', 'd_ma', 'd_br'].forEach(id => $('#' + id).onchange = renderDaily);
 ['t_ob', 't_vp', 't_vw', 't_ev', 't_dot', 't_dp', 't_yd', 't_cu'].forEach(id => $('#' + id).onchange = renderTick);
+document.querySelectorAll('#tctl [data-n]').forEach(b => b.onclick = () => tSetN(+b.dataset.n));
+$('#tprev').onclick = () => tMove(1); $('#tnext').onclick = () => tMove(-1);
 $('#sub').textContent = `Nến ngày tới ${D.meta.last_daily} · tick thật ${D.meta.tick_days.length} phiên (${D.meta.tick_days[0]} → ${D.meta.last_tick_day}) · 39 mã KingStock · chỉ nghiên cứu, không phải tín hiệu${D.meta.built ? ' · dựng ' + D.meta.built : ''}${D.meta.last_tick_day < D.meta.last_daily ? ' · tick phiên ' + D.meta.last_daily + ' chưa có (nguồn order-flow-live thường lên 19:00–22:00), thẻ 15′ đang tới ' + D.meta.last_tick_day : ''}`;
 if (!SYM || !D.sym[SYM]) SYM = D.scan[0].s;
 renderAll(); renderRes(); renderHow();
-const refit = () => { const w = $('#dscroll').clientWidth; if (w && Math.abs(w - (window.__dw || 0)) > 1) renderDaily(); };
+const refit = () => { const w = $('#dscroll').clientWidth; if (w && Math.abs(w - (window.__dw || 0)) > 1) renderDaily(); const w2 = $('#tscroll').clientWidth; if (w2 && Math.abs(w2 - (window.__tw || 0)) > 1) renderTick(); };
 requestAnimationFrame(() => requestAnimationFrame(refit)); window.addEventListener('load', refit);
 let rzT; window.addEventListener('resize', () => { clearTimeout(rzT); rzT = setTimeout(refit, 150); });
 { const q = new URLSearchParams(location.search).get('tab'); if (q) { const b = document.querySelector('.tab[data-t="' + q + '"]'); if (b) b.click(); } }
