@@ -81,6 +81,8 @@ def daily_pack(sym: str, raw: dict, HID: dict) -> dict:
     # CVD CÁ MẬP ngày = cộng dồn delta cá mập: lệnh lớn ≥ 500 tr (bb − bs của app order-flow, từ 18/09) + cá mập ẩn (Σ adj của hidden.py;
     # chỉ có phiên 25/09 và 30/09 → 13/10; phiên khác chỉ có lệnh lớn). Cờ hid = 1 nếu phiên đó đã cộng cá mập ẩn.
     wc_day, hid_day, wcum = {}, {}, 0.0
+    hsd_day = {}                          # cá mập ẩn RIÊNG từng phiên (cổ phiếu) → cộng vào vạch vàng ô Delta, 18/10/2026
+    hs_day, hscum = {}, 0.0               # cùng phần ẩn đó tính bằng CỔ PHIẾU (Σ adj), 18/10/2026
     hc_day, hcum = {}, 0.0                # CVD CHỈ cá mập ẩn (17/10/2026): cộng dồn GIÁ TRỊ (tỷ đồng, hidden.val = comb − whale của app) từ 25/09, chỉ phiên có dữ liệu ẩn
     for dd in sorted(delta):
         bbv, bsv = delta[dd].get("bb"), delta[dd].get("bs")
@@ -89,15 +91,19 @@ def daily_pack(sym: str, raw: dict, HID: dict) -> dict:
         w = bbv - bsv
         hh = HID.get((sym, dd))
         if hh:
-            w += sum(sh for _, sh in hh["adj"])
+            hs = sum(sh for _, sh in hh["adj"])
+            w += hs
             hid_day[dd] = 1
             hcum += hh["val"]
             hc_day[dd] = hcum
+            hscum += hs
+            hs_day[dd] = hscum
+            hsd_day[dd] = hs
         wcum += w
         wc_day[dd] = wcum
     i0 = max(0, n - SHOW_D)
     obs, marks, cands = [], [], []
-    stage = {"valid_ob": 0, "touched": 0, "zone_ok": 0, "alert": 0, "has_data": 0, "star": 0}
+    stage = {"valid_ob": 0, "touched": 0, "zone_ok": 0, "alert": 0, "alert_valid": 0, "has_data": 0, "star": 0}
     for bull in (True, False):
         for ob in find_obs_imb(df, bull):
             f = VO.flags(df, ob, fv, bull)
@@ -121,7 +127,8 @@ def daily_pack(sym: str, raw: dict, HID: dict) -> dict:
                         break
             marked = False
             stage["valid_ob"] += bool(f["valid"])
-            if f["valid"] and t is not None and t > m + LAG:
+            # 18/10/2026 (người dùng): cảnh báo dùng SONG SONG OB bình thường (có imbalance) và OB hợp lệ; OB hợp lệ → thêm dấu ✓ xanh trên thẻ
+            if t is not None and t > m + LAG:
                 stage["touched"] += 1
                 mid = (ob["lo"] + ob["hi"]) / 2
                 still = not ((c[m + 1:t] < ob["lo"]).any() if bull else (c[m + 1:t] > ob["hi"]).any())
@@ -137,17 +144,18 @@ def daily_pack(sym: str, raw: dict, HID: dict) -> dict:
                     st, why = ("alert", "") if poc_ok else ("miss", "POC ngoài dải giữa OB")   # cảnh báo = ①②③④ (chỉ giá)
                     if poc_ok:
                         stage["alert"] += 1
+                        stage["alert_valid"] += bool(f["valid"])
                         stage["has_data"] += fl["d_ok"] is not None or fl["c_ok"] is not None
                         stage["star"] += star
                     rec = {"s": sym, "d": dates[t], "bull": bull, "st": st, "why": why, "lo": r4(ob["lo"]), "hi": r4(ob["hi"]),
                            "mid": r4(mid), "px": r4(l[t] if bull else h[t]), "close": r4(c[t]), "delta": fl["delta"], "dpct": r4(fl["dpct"]),
                            "cvd": fl["cvd"], "cpct": r4(fl["cpct"]), "kl": int(v[t]), "poc": r4(poc), "poc_ok": bool(poc_ok),
-                           "band": [r4(b_lo), r4(b_hi)], "d_ok": fl["d_ok"], "c_ok": fl["c_ok"], "star": bool(star), "_t": t}
+                           "band": [r4(b_lo), r4(b_hi)], "d_ok": fl["d_ok"], "c_ok": fl["c_ok"], "star": bool(star), "valid": bool(f["valid"]), "_t": t}
                     cands.append(rec)
                     marked = marked or t >= i0
                     if t >= i0:
                         marks.append({**{k: rec[k] for k in ("bull", "st", "why", "lo", "hi", "mid", "px", "close", "delta", "dpct", "cvd", "cpct", "kl",
-                                                              "poc", "poc_ok", "band", "d_ok", "c_ok", "star")}, "i": t - i0})
+                                                              "poc", "poc_ok", "band", "d_ok", "c_ok", "star", "valid")}, "i": t - i0})
             if end < i0:
                 continue
             obs.append({"bull": bull, "k": ob["k"] - i0, "m": m - i0, "end": end - i0, "lo": r4(ob["lo"]), "hi": r4(ob["hi"]),
@@ -160,7 +168,7 @@ def daily_pack(sym: str, raw: dict, HID: dict) -> dict:
     bars = [[dates[i], r4(df["o"].iat[i]), r4(df["h"].iat[i]), r4(df["l"].iat[i]), r4(df["c"].iat[i]), int(df["v"].iat[i]),
              (delta.get(dates[i]) or {}).get("delta"), (delta.get(dates[i]) or {}).get("big"),
              None if np.isnan(ma20.iat[i]) else int(round(ma20.iat[i])), cvd_day.get(dates[i]),
-             wc_day.get(dates[i]), hid_day.get(dates[i], 0), hc_day.get(dates[i])] for i in range(i0, n)]
+             wc_day.get(dates[i]), hid_day.get(dates[i], 0), hc_day.get(dates[i]), hs_day.get(dates[i]), hsd_day.get(dates[i])] for i in range(i0, n)]
     return {"bars": bars, "obs": obs, "marks": marks, "vp": prof, "atr": r4(a[-1]), "last": dates[-1], "_cands": cands, "_stage": stage}
 
 
