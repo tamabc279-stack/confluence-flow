@@ -81,6 +81,7 @@ def daily_pack(sym: str, raw: dict, HID: dict) -> dict:
     # CVD CÁ MẬP ngày = cộng dồn delta cá mập: lệnh lớn ≥ 500 tr (bb − bs của app order-flow, từ 18/09) + cá mập ẩn (Σ adj của hidden.py;
     # chỉ có phiên 25/09 và 30/09 → 13/10; phiên khác chỉ có lệnh lớn). Cờ hid = 1 nếu phiên đó đã cộng cá mập ẩn.
     wc_day, hid_day, wcum = {}, {}, 0.0
+    hc_day, hcum = {}, 0.0                # CVD CHỈ cá mập ẩn (17/10/2026): cộng dồn GIÁ TRỊ (tỷ đồng, hidden.val = comb − whale của app) từ 25/09, chỉ phiên có dữ liệu ẩn
     for dd in sorted(delta):
         bbv, bsv = delta[dd].get("bb"), delta[dd].get("bs")
         if bbv is None or bsv is None:
@@ -90,6 +91,8 @@ def daily_pack(sym: str, raw: dict, HID: dict) -> dict:
         if hh:
             w += sum(sh for _, sh in hh["adj"])
             hid_day[dd] = 1
+            hcum += hh["val"]
+            hc_day[dd] = hcum
         wcum += w
         wc_day[dd] = wcum
     i0 = max(0, n - SHOW_D)
@@ -157,7 +160,7 @@ def daily_pack(sym: str, raw: dict, HID: dict) -> dict:
     bars = [[dates[i], r4(df["o"].iat[i]), r4(df["h"].iat[i]), r4(df["l"].iat[i]), r4(df["c"].iat[i]), int(df["v"].iat[i]),
              (delta.get(dates[i]) or {}).get("delta"), (delta.get(dates[i]) or {}).get("big"),
              None if np.isnan(ma20.iat[i]) else int(round(ma20.iat[i])), cvd_day.get(dates[i]),
-             wc_day.get(dates[i]), hid_day.get(dates[i], 0)] for i in range(i0, n)]
+             wc_day.get(dates[i]), hid_day.get(dates[i], 0), hc_day.get(dates[i])] for i in range(i0, n)]
     return {"bars": bars, "obs": obs, "marks": marks, "vp": prof, "atr": r4(a[-1]), "last": dates[-1], "_cands": cands, "_stage": stage}
 
 

@@ -210,7 +210,7 @@ function renderDaily() {
   const narrow = $('#dscroll').closest('.chart').clientWidth < 640;
   $('#dprof').style.display = narrow ? 'none' : '';
   const AX = narrow ? 34 : 0, G = narrow ? 14 : 0;
-  const PL = 6, hostW = $('#dscroll').clientWidth || 900, BW = Math.max(6, Math.floor((hostW - PL - 14 - AX) / n)), W = narrow ? hostW : PL + n * BW + 14, hP = 290, top = 10, vTop = 308 + G, vH = 46, dTop = 366 + 2 * G, dH = 70, cTop = dTop + dH + 32 + 2 * G, cH = 110, H = cTop + cH + 22;
+  const PL = 6, hostW = $('#dscroll').clientWidth || 900, BW = Math.max(6, Math.floor((hostW - PL - 14 - AX) / n)), W = narrow ? hostW : PL + n * BW + 14, hP = 290, top = 10, vTop = 308 + G, vH = 46, dTop = 394 + 2 * G, dH = 70, cTop = dTop + dH + 32 + 2 * G, cH = 110, hTop = cTop + cH + 40, hH = 94, H = hTop + hH + 8;
   const lo0 = Math.min(...bars.map(b => b[3])), hi0 = Math.max(...bars.map(b => b[2])), pad = (hi0 - lo0) * .05;
   const lo = lo0 - pad, hi = hi0 + pad, y = lin(hi, lo, top, top + hP), x = i => PL + i * BW + BW / 2;
   const host = $('#dscroll'); host.innerHTML = ''; window.__dw = hostW;
@@ -327,15 +327,45 @@ function renderDaily() {
       });
     }
   } else el('text', {x: W / 2, y: cTop + cH / 2, 'text-anchor': 'middle', class: 'lbl'}, svg, 'Chưa có delta ngày thật cho mã này (từ 18/09/2026).');
+  // ---- khung CVD CHỈ CÁ MẬP ẨN (17/10/2026): lệnh con chuỗi thuật toán < 500 tr (đã trừ chân rổ chỉ số), cộng dồn từ 25/09;
+  // thang RIÊNG (nhỏ hơn CVD tổng nhiều); cùng cột ngày với khung CVD ở trên để các điểm thẳng hàng.
+  el('line', {x1: 0, x2: W, y1: hTop - 8, y2: hTop - 8, stroke: css('--line')}, svg);
+  const hpts = cpts.map((p, j) => ({j, d: p.d, v: bars[p.i][12]})).filter(q => q.v != null);
+  const hUnit = 'tỷ';
+  if (hpts.length >= 1 && cpts.length >= 2) {
+    const nP = cpts.length, stp = (W - PL - 52) / (nP - 1), cx = j => PL + 26 + j * stp;
+    const lStep = Math.max(1, Math.ceil(34 / stp)), showL = q => (nP - 1 - q.j) % lStep === 0 || q === hpts[hpts.length - 1];
+    const fh = v => { const t = Number(v.toFixed(2)); return (t < 0 ? '−' : '') + String(Math.abs(t)).replace('.', ','); };   // giá trị đã là tỷ đồng
+    const hv = hpts.map(q => q.v), hmx = Math.max(0, ...hv), hmn = Math.min(0, ...hv), hpd = (hmx - hmn || 1) * .18;
+    const hy = lin(hmx + hpd, hmn - hpd, hTop + 26, hTop + hH - 12);
+    el('line', {x1: PL, x2: W - 4, y1: hy(0), y2: hy(0), stroke: css('--mut'), 'stroke-width': .8, 'stroke-dasharray': '3 3'}, svg);
+    el('text', {x: W - 4, y: hy(0) - 3, 'text-anchor': 'end', class: 'lbl'}, svg, '0');
+    if (hpts.length >= 2) el('polyline', {points: hpts.map(q => cx(q.j) + ',' + hy(q.v)).join(' '), fill: 'none', stroke: css('--cum'), 'stroke-width': 2.2, 'stroke-linejoin': 'round'}, svg);
+    hpts.forEach((q, k) => {
+      const own = k ? q.v - hpts[k - 1].v : q.v;
+      const dot = el('circle', {cx: cx(q.j), cy: hy(q.v), r: 3.4, fill: css('--cum'), stroke: css('--card'), 'stroke-width': 1}, svg);
+      tip(dot, `${q.d} · CVD cá mập ẩn ${fh(q.v)} ${hUnit} (cộng dồn từ 25/09) · riêng phiên này ${own >= 0 ? '+' : ''}${fh(own)} ${hUnit}`);
+      // nhãn ở MỌI điểm (18/10/2026): đỉnh cục bộ → trên, đáy cục bộ → dưới, còn lại luân phiên trên/dưới để không đè nhau
+      const pv = k ? hpts[k - 1].v : null, nv = k < hpts.length - 1 ? hpts[k + 1].v : null;
+      const peak = (pv == null || q.v >= pv) && (nv == null || q.v >= nv), dip = (pv == null || q.v <= pv) && (nv == null || q.v <= nv);
+      const above = peak && !dip ? true : dip && !peak ? false : k % 2 === 0;
+      el('text', {x: cx(q.j), y: above ? hy(q.v) - 8 : hy(q.v) + 15, 'text-anchor': 'middle', style: halo() + `font-size:${stp < 40 ? 9 : 10.5}px;font-weight:700;fill:${css('--cum')}`}, svg, fh(q.v));
+    });
+  } else el('text', {x: W / 2, y: hTop + hH / 2, 'text-anchor': 'middle', class: 'lbl'}, svg, 'Chưa có dữ liệu cá mập ẩn cho mã này (có từ phiên 25/09 và 30/09/2026).');
+  const hCap = `CVD CHỈ cá mập ẩn (tỷ đồng, mua − bán, cộng dồn từ 25/09, thang riêng) — lệnh con chuỗi thuật toán < 500 tr, đã trừ rổ chỉ số`;
   const nTk = Math.max(3, Math.min(12, Math.floor(W / 52)));
   Array.from({length: nTk}, (_, k) => k).forEach(k => {
     const i = Math.round(k * (n - 1) / (nTk - 1));
     el('text', {x: x(i), y: dTop + dH + 14, 'text-anchor': 'middle', class: 'lbl'}, svg, sh(bars[i][0]));   // trục ngày của nến, nằm dưới khung Delta
   });
-  if (narrow) $('#dcap').innerHTML = `<span style="top:${vTop - 14}px">KL · đường đậm = TB20 phiên trước</span><span style="top:${dTop - 14}px">Delta ngày (tick thật từ 18/09) · vạch vàng = cá mập</span>` +
-    `<span style="top:${cTop - 30}px">CVD ngày (triệu cp, cộng dồn từ 18/09)</span><span style="top:${cTop - 16}px"><i class="ln" style="border-color:var(--gold)"></i>CVD · <i class="ln" style="border-color:var(--wl)"></i>cá mập · <i class="ln" style="border-color:var(--ink);border-top-style:dashed"></i>giá</span>`;
-  else $('#dcap').innerHTML = `<span style="top:${vTop}px">KL (màu theo delta khi có tick) · đường đậm = TB KL 20 phiên trước</span><span style="top:${dTop}px">Delta ngày (mua−bán chủ động, tick thật từ 18/09) · vạch vàng = cá mập</span>` +
-    `<span style="top:${cTop - 4}px">CVD ngày (triệu cp, cộng dồn từ 18/09)</span><span class="r" style="top:${cTop - 4}px"><i class="ln" style="border-color:var(--gold)"></i>CVD (vàng) · <i class="ln" style="border-color:var(--wl)"></i>CVD cá mập (tím; cùng thang với CVD vàng) · <i class="ln" style="border-color:var(--ink);border-top-style:dashed"></i>giá đóng cửa (mỗi đường một thang riêng)</span><span class="r" style="top:${cTop + 10}px;font-size:10px">tím = lệnh ≥ 500 tr + cá mập ẩn (ẩn chỉ có phiên 25/09 và từ 30/09)</span>`;
+  if (narrow) $('#dcap').innerHTML = `<span style="top:${vTop - 14}px">KL · đường đậm = TB20 phiên trước</span><span style="top:${dTop - 30}px">Delta ngày (tick thật từ 18/09) · vàng = ròng lệnh ≥ 500 tr</span>` +
+    `<span style="top:${dTop - 16}px;font-size:10px">vàng: <b style="color:var(--cvdl)">sát đầu cột</b> = cá mập dẫn · <b style="color:var(--cvdl)">gần 0</b> = nhỏ lẻ · <b style="color:var(--cvdl)">ngược cột</b> = cá mập đi ngược</span>` +
+    `<span style="top:${cTop - 30}px">CVD ngày (triệu cp, cộng dồn từ 18/09)</span><span style="top:${cTop - 16}px"><i class="ln" style="border-color:var(--gold)"></i>CVD · <i class="ln" style="border-color:var(--wl)"></i>cá mập · <i class="ln" style="border-color:var(--ink);border-top-style:dashed"></i>giá</span>` +
+    `<span style="top:${hTop - 4}px">CVD CHỈ cá mập ẩn (tỷ đồng, cộng dồn từ 25/09)</span>`;
+  else $('#dcap').innerHTML = `<span style="top:${vTop}px">KL (màu theo delta khi có tick) · đường đậm = TB KL 20 phiên trước</span><span style="top:${dTop - 30}px">Delta ngày (mua − bán chủ động, tick thật từ 18/09) · vạch vàng = ròng lệnh lớn ≥ 500 tr (cá mập), cùng thang với cột</span>` +
+    `<span style="top:${dTop - 16}px;font-size:10px"><b style="color:var(--cvdl)">Vàng sát đầu cột</b> = cá mập dẫn phiên · <b style="color:var(--cvdl)">gần đường 0</b> = do nhỏ lẻ, cá mập đứng ngoài · <b style="color:var(--cvdl)">ngược phía cột</b> = cá mập đi ngược (cột đỏ + vàng trên 0 = hấp thụ bán; cột xanh + vàng dưới 0 = cá mập xả vào lực mua)</span>` +
+    `<span style="top:${cTop - 4}px">CVD ngày (triệu cp, cộng dồn từ 18/09)</span><span class="r" style="top:${cTop - 4}px"><i class="ln" style="border-color:var(--gold)"></i>CVD (vàng) · <i class="ln" style="border-color:var(--wl)"></i>CVD cá mập (tím; cùng thang với CVD vàng) · <i class="ln" style="border-color:var(--ink);border-top-style:dashed"></i>giá đóng cửa (mỗi đường một thang riêng)</span><span class="r" style="top:${cTop + 10}px;font-size:10px">tím = lệnh ≥ 500 tr + cá mập ẩn (ẩn chỉ có phiên 25/09 và từ 30/09)</span>` +
+    `<span style="top:${hTop - 4}px">${hCap}</span>`;
   if (!narrow) profileCol($('#dprof'), d.vp, y, H, lo, hi, '{{VPW}} phiên ngày');
   host.scrollLeft = host.scrollWidth;
   $('#dleg').innerHTML = `<span><i class="zb bv"></i>OB tăng ✓ hợp lệ</span><span><i class="zb bn"></i>OB tăng thường</span>
@@ -730,6 +760,7 @@ function renderHow() {
    <tr><td><i class="ln" style="border-color:var(--vp)"></i> <i class="ln" style="border-color:var(--vp);border-top-style:dashed"></i></td><td>POC (liền) và VAH/VAL (đứt) của Volume Profile — màu tím.</td></tr>
    <tr><td><i class="ln" style="border-color:var(--gold)"></i></td><td>VWAP phiên (vàng); vạch vàng ở khung KL/Delta = delta cá mập.</td></tr>
    <tr><td><i class="ln" style="border-color:var(--wl)"></i></td><td>Khung CVD ngày: đường tím = CVD cá mập (cộng dồn từ 18/09, cùng thang với CVD tổng) = delta lệnh lớn ≥ 500 tr + cá mập ẩn. Cá mập ẩn chỉ có từ phiên 25/09 và 30/09, các phiên khác chỉ có lệnh lớn (tooltip từng chấm ghi rõ). Đường vàng = CVD tổng mọi lệnh (chưa tách cá mập).</td></tr>
+   <tr><td><i class="ln" style="border-color:var(--cum)"></i></td><td>Khung dưới cùng của thẻ ngày: CVD CHỈ cá mập ẩn (tỷ đồng, cùng cách tính với tab Cá mập ẩn của app price-path: Tổng hợp − CM ≥ 500 tr) = cộng dồn giá trị lệnh con của chuỗi thuật toán (< 500 tr mỗi lệnh, đã trừ chân rổ chỉ số) từ 25/09; thang riêng, có đường 0. Chỉ có điểm ở phiên có dữ liệu cá mập ẩn (25/09 và từ 30/09). Phần này đã nằm trong đường tím ở khung trên; khung riêng giúp thấy nó tách khỏi lệnh lớn ≥ 500 tr.</td></tr>
   </table>
   <div class="note">Đây là bản nghiên cứu, chưa phải tín hiệu giao dịch: các lab trước đo từng chỉ báo riêng đều không qua cổng, xem tab "Kết quả đo".</div></div>`;
 }
