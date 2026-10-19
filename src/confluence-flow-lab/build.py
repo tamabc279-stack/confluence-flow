@@ -14,6 +14,7 @@ import numpy as np
 
 from layers import FAKE, HERE, LAG, M, ROOT, TOL, VO, VOL_X, VP_W, VPM, find_obs_imb, vp_frame, vp_tags
 from m_tick import CV, DAILY, LIFE, zones_for
+import lq       # nhãn LQ trên nến ngày (luật Sweep Lab, 19/10/2026)
 import hidden   # cvd-candle-lab/hidden.py (sys.path đã được m_tick thêm): cá mập ẩn của tab Cá mập ẩn (price-path)
 
 SHOW_D = 40           # số nến ngày hiển thị (13/10: người dùng chỉ muốn 40 phiên)
@@ -21,6 +22,7 @@ OF = HERE / "data" / "of"
 CVD_PCT = 0.15        # CVD nửa đầu phiên phải lệch ≥ 15 % KL phiên (người dùng chốt 13/10)
 HALF_END = 11 * 60 + 30   # hết phiên sáng = hết "nửa đầu phiên"
 POC_BAND = (0.25, 0.75)   # dải giữa OB (0 % = đáy, 100 % = đỉnh) mà POC phải nằm trong (người dùng chốt 13/10)
+BARS5: dict = {}       # cvd-candle-lab/data/bars.json (nến 5' tick) — chỉ để xét Δ của nhãn LQ bán (B4)
 CLOSES: dict[str, dict[str, float]] = {}   # {mã: {ngày: đóng cửa}} để tính lợi suất sau cảnh báo
 
 
@@ -169,7 +171,9 @@ def daily_pack(sym: str, raw: dict, HID: dict) -> dict:
              (delta.get(dates[i]) or {}).get("delta"), (delta.get(dates[i]) or {}).get("big"),
              None if np.isnan(ma20.iat[i]) else int(round(ma20.iat[i])), cvd_day.get(dates[i]),
              wc_day.get(dates[i]), hid_day.get(dates[i], 0), hc_day.get(dates[i]), hs_day.get(dates[i]), hsd_day.get(dates[i])] for i in range(i0, n)]
-    return {"bars": bars, "obs": obs, "marks": marks, "vp": prof, "atr": r4(a[-1]), "last": dates[-1], "_cands": cands, "_stage": stage}
+    lqm = [{**{k: v for k, v in x.items() if k not in ("t", "s")}, "i": x["s"] - i0, "t": x["t"] - i0}
+           for x in lq.lq_marks(df, (BARS5.get(sym) or {}).get("days", {})) if x["s"] >= i0]
+    return {"bars": bars, "obs": obs, "marks": marks, "lq": lqm, "vp": prof, "atr": r4(a[-1]), "last": dates[-1], "_cands": cands, "_stage": stage}
 
 
 def tick_pack(mk, sym: str, events: list[dict]) -> dict:
@@ -218,6 +222,7 @@ def main() -> int:
     CV.add_hidden(raw, days, uni)
     mk = CV.Market(raw, days, uni)
     syms = sorted(p.stem for p in DAILY.glob("*.json"))
+    BARS5.update(json.loads((ROOT / "cvd-candle-lab" / "data" / "bars.json").read_text(encoding="utf-8")))
     w60 = json.loads((HERE / "data" / "daily_w60.json").read_text(encoding="utf-8"))
     data = {"w60": {"bull": w60["bull"], "marginal": w60["marginal"], "vp_w": w60["meta"]["vp_w"]}, "daily": daily, "tick": {k: v for k, v in tick.items() if k != "events"}, "sym": {}, "scan": []}
     last = days[-1]

@@ -96,6 +96,7 @@ ol.steps6{margin:10px 0 4px;padding:0;list-style:none;display:grid;gap:7px}ol.st
         <label><input type="checkbox" id="d_ob" checked> Hộp OB</label>
         <label><input type="checkbox" id="d_vp" checked> POC/VAH/VAL</label>
         <label><input type="checkbox" id="d_mk" checked> Cảnh báo MUA/BÁN</label>
+        <label><input type="checkbox" id="d_lq" checked> Nhãn LQ</label>
         <label><input type="checkbox" id="d_nvp"> cả lần test thiếu POC</label>
         <label><input type="checkbox" id="d_ma" checked> TB20 khối lượng</label>
         <label><input type="checkbox" id="d_br"> Hiện OB đã thủng / đã dùng</label>
@@ -282,6 +283,49 @@ function renderDaily() {
       `CVD ${m.bull ? 'đáy' : 'đỉnh'} nửa đầu phiên ${m.cvd == null ? '—' : big(m.cvd) + ' (' + pct(m.cpct) + ' KL; ngưỡng ' + (m.bull ? '≤ −' : '≥ +') + (cp * 100).toFixed(0) + ' %)'} ${yn(m.c_ok)}`;
     tag(svg, x(m.i), m.bull ? y(b[3]) : y(b[2]), m.bull, side, ok, m.bull, 11, txt, ok && m.star, ok && m.valid);
   });
+  // Nhãn LQ (19/10/2026, luật Sweep Lab — chưa qua cổng thống kê): LQ xanh dưới chân nến quét (viền L1, đặc L2), ✓ xanh trên đầu nến
+  // phiên xác nhận (L3); LQ đỏ trên đầu nến quét (viền B1, đặc B2), ✓ đỏ trên đầu nến phiên xác nhận (B3), Δ đỏ trên nhãn (B4).
+  if ($('#d_lq').checked && d.lq) {
+    const busy = (i, bull) => $('#d_mk').checked && d.marks.some(m => m.i === i && m.bull === bull && (m.st === 'alert' || $('#d_nvp').checked));
+    const pc = v => Math.round(v * 100) + ' %';
+    const badge = (i, buy, full, tipText, delta) => {
+      const b = bars[i], col = css(buy ? '--up' : '--dn'), w = 22, h = 13, off = busy(i, buy) ? 30 : 0;
+      const yy = buy ? y(b[3]) + 6 + off : y(b[2]) - 6 - h - off, grp = el('g', {}, svg);
+      el('rect', {x: x(i) - w / 2, y: yy, width: w, height: h, rx: 3, fill: full ? col : css('--card'), stroke: col, 'stroke-width': 1}, grp);
+      el('text', {x: x(i), y: yy + h / 2 + 3.2, 'text-anchor': 'middle', style: `font-size:9px;font-weight:700;fill:${full ? css('--card') : col}`}, grp, 'LQ');
+      if (delta) el('text', {x: x(i), y: yy - 3, 'text-anchor': 'middle', style: halo() + `font-size:11px;font-weight:800;fill:${col}`}, grp, 'Δ');
+      tip(grp, tipText);
+    };
+    const check = (i, buy, tipText) => {
+      const b = bars[i], col = css(buy ? '--up' : '--dn'), off = $('#d_mk').checked && d.marks.some(m => m.i === i && !m.bull) ? 30 : 0;
+      const cy = y(b[2]) - 11 - off, grp = el('g', {}, svg);
+      el('circle', {cx: x(i), cy, r: 6.5, fill: css('--card'), stroke: col, 'stroke-width': 1}, grp);
+      el('text', {x: x(i), y: cy + 3.3, 'text-anchor': 'middle', style: `font-size:9.5px;font-weight:700;fill:${col}`}, grp, '✓');
+      tip(grp, tipText);
+    };
+    d.lq.filter(m => m.k === 'L1').forEach(m => {
+      const full = d.lq.some(o => o.k === 'L2' && o.i === m.i), b = bars[m.i];
+      badge(m.i, true, full, `LQ MUA ${full ? '(L2: quét đáy 60 phiên / đáy bằng nhau)' : '(L1)'} — ${b[0]}
+Sau đợt giảm, giá thủng đáy cũ ${fx(m.lev)} rồi đóng cửa trên đó; nến xanh đóng ở ${pc(m.pos)} biên độ, KL ${m.vr}× TB20.
+Chưa qua cổng thống kê (Sweep Lab). Chờ ✓ phiên sau để chắc hơn.`, false);
+    });
+    d.lq.filter(m => m.k === 'L3').forEach(m => check(m.i, true, `✓ LQ MUA xác nhận (L3) — ${bars[m.i][0]}
+Phiên sau nến quét: KL < TB20 và đóng cửa ≥ mức 2/3 nến quét (${fx(m.lvl)}).
+Sweep Lab: +1,38 % so với mua đại sau 10 phiên, 7/8 năm — vẫn chưa qua cổng (ít lệnh).`));
+    d.lq.filter(m => m.k === 'B1').forEach(m => {
+      const full = d.lq.some(o => o.k === 'B2' && o.i === m.i), b = bars[m.i];
+      badge(m.i, false, full, `LQ BÁN ${full ? '(B2: vượt đỉnh 60 phiên / đỉnh bằng nhau)' : '(B1)'} — ${b[0]}
+Sau đợt tăng, giá vượt đỉnh cũ ${fx(m.lev)} rồi đóng yếu ở ${pc(m.pos)} biên độ, KL ${m.vr}× TB20.` +
+        (m.b4 ? `
+Δ: bán chủ động ${m.sx}× mua, CVD trong phiên đỉnh lúc vượt đỉnh rồi giảm.` : (m.sx != null ? `
+Tick: bán/mua ${m.sx}× (chưa đạt Δ).` : '')) +
+        `
+Sweep Lab: nhãn này KHÔNG có lợi thế làm tín hiệu thoát (giá 10 phiên sau còn cao hơn mua đại).`, m.b4);
+    });
+    d.lq.filter(m => m.k === 'B3').forEach(m => check(m.i, false, `✓ LQ BÁN xác nhận (B3) — ${bars[m.i][0]}
+Phiên sau nến quét đóng cửa ≤ mức 1/3 nến quét (${fx(m.lvl)}).
+Sweep Lab: ≈ mua đại sau 10 phiên — chỉ để cảnh giác.`));
+  }
   const showMa = $('#d_ma').checked, vmax = Math.max(...bars.map(b => b[5]), ...(showMa ? bars.map(b => b[8] || 0) : [0])), vy = lin(0, vmax, vTop + vH, vTop);
   bars.forEach((b, i) => el('rect', {x: x(i) - (BW - 3) / 2, y: vy(b[5]), width: BW - 3, height: vTop + vH - vy(b[5]),
     fill: b[6] == null ? css('--mut') : b[6] >= 0 ? css('--up') : css('--dn'), opacity: b[6] == null ? .3 : .6}, svg));
@@ -399,6 +443,8 @@ riêng phiên này ${own >= 0 ? '+' : ''}${fh(own)} ${hUnit}${ownS == null ? '' 
    <span><i class="zb sv"></i>OB giảm ✓ hợp lệ</span><span><i class="zb sn"></i>OB giảm thường</span><span><i class="zb br"></i>đã thủng / đã dùng (ẩn, bật ô để xem)</span>
    <span><i class="ln" style="border-color:var(--buy);border-top-style:dashed"></i>50 % của OB hợp lệ · dải tô đậm = giữa 25–75 % (POC phải nằm trong)</span>
    <span><b class="tagc buy solid">MUA</b> <b class="tagc sell solid">BÁN</b> CẢNH BÁO = đủ ①②③④ (OB còn sống — bình thường hoặc hợp lệ + lần test đầu + chỉ vào nửa OB + POC trong dải giữa) · <b style="color:var(--up)">✓ xanh</b> = OB hợp lệ</span>
+   <span><b style="color:var(--up);border:1px solid var(--up);border-radius:3px;padding:0 3px;font-size:10px">LQ</b>/<b style="color:var(--card);background:var(--up);border-radius:3px;padding:0 3px;font-size:10px">LQ</b> LQ mua dưới chân nến (viền L1, đặc = quét đáy 60 phiên) · <b style="color:var(--up)">✓</b> trên đầu nến = phiên sau xác nhận</span>
+   <span><b style="color:var(--dn);border:1px solid var(--dn);border-radius:3px;padding:0 3px;font-size:10px">LQ</b>/<b style="color:var(--card);background:var(--dn);border-radius:3px;padding:0 3px;font-size:10px">LQ</b> LQ bán trên đầu nến (viền B1, đặc = vượt đỉnh 60 phiên) · <b style="color:var(--dn)">✓</b> = phiên sau xác nhận · <b style="color:var(--dn)">Δ</b> = bán chủ động ≥ 1,5× mua</span>
    <span><b class="tagc buy solid">MUA</b><b class="starb">★</b> ★ tím = có thêm delta ngày và/hoặc CVD nửa đầu phiên đạt</span>
    <span><b class="tagc buy out">MUA</b> <b class="tagc sell out">BÁN</b> test OB hợp lệ nhưng POC ngoài dải (bật ô "cả lần test thiếu POC")</span>
    <span><i class="ln" style="border-color:var(--vp)"></i>POC · <i class="ln" style="border-color:var(--vp);border-top-style:dashed"></i>VAH/VAL</span><span><i class="ln" style="border-color:var(--ink)"></i>TB20 khối lượng</span>
@@ -925,13 +971,21 @@ document.querySelectorAll('.tab').forEach(b => b.onclick = () => {
   document.querySelectorAll('.tab').forEach(x => x.classList.toggle('on', x === b));
   ['chart', 'res', 'how'].forEach(k => $('#v-' + k).classList.toggle('hide', k !== b.dataset.t));
 });
-['d_ob', 'd_vp', 'd_mk', 'd_nvp', 'd_ma', 'd_br'].forEach(id => $('#' + id).onchange = renderDaily);
+['d_ob', 'd_vp', 'd_mk', 'd_lq', 'd_nvp', 'd_ma', 'd_br'].forEach(id => $('#' + id).onchange = renderDaily);
 ['t_ob', 't_vp', 't_vw', 't_ev', 't_dot', 't_dp', 't_yd', 't_cu'].forEach(id => $('#' + id).onchange = renderTick);
 document.querySelectorAll('#tctl [data-n]').forEach(b => b.onclick = () => tSetN(+b.dataset.n));
 $('#tprev').onclick = () => tMove(1); $('#tnext').onclick = () => tMove(-1);
 $('#sub').textContent = `Nến ngày tới ${D.meta.last_daily} · tick thật ${D.meta.tick_days.length} phiên (${D.meta.tick_days[0]} → ${D.meta.last_tick_day}) · 39 mã KingStock · chỉ nghiên cứu, không phải tín hiệu${D.meta.built ? ' · dựng ' + D.meta.built : ''}${D.meta.last_tick_day < D.meta.last_daily ? ' · tick phiên ' + D.meta.last_daily + ' chưa có (nguồn order-flow-live thường lên 19:00–22:00), thẻ 15′ đang tới ' + D.meta.last_tick_day : ''}`;
 if (!SYM || !D.sym[SYM]) SYM = D.scan[0].s;
 renderAll(); renderRes(); renderHow();
+$('#v-how').insertAdjacentHTML('beforeend', `<div class="card" id="lqcard"><h2>Nhãn LQ — cú quét thanh khoản trên nến ngày (thêm 19/10/2026, luật của Sweep Lab)</h2>
+  <div class="sub">Bật/tắt bằng ô "Nhãn LQ". Độc lập với thẻ MUA/BÁN của luật OB. <b>Chưa qua cổng thống kê</b> — dùng để để ý, không phải lệnh.</div>
+  <table><tr><th>Ký hiệu</th><th>Điều kiện</th></tr>
+   <tr><td><b style="color:var(--up)">LQ</b> xanh dưới chân nến</td><td>Sau đợt giảm (đóng hôm trước ≤ 95 % đỉnh đóng cửa 20 phiên): mở cửa dưới/sát một đáy cũ còn hiệu lực, giá thủng đáy đó rồi đóng cửa trên nó; nến xanh đóng ở ≥ 70 % biên độ; KL ≥ 1× TB20. Nhãn đặc = đáy bị quét là đáy 60 phiên hoặc đáy bằng nhau.</td></tr>
+   <tr><td><b style="color:var(--up)">✓</b> xanh trên đầu nến</td><td>Phiên sau nến LQ mua: KL &lt; TB20 và đóng cửa trên mức 2/3 cây nến quét. Đo 39 mã 2016–2026: +1,38 % so với mua đại sau 10 phiên, đúng chiều 7/8 năm, nhưng mới 92 lần nên chưa qua cổng.</td></tr>
+   <tr><td><b style="color:var(--dn)">LQ</b> đỏ trên đầu nến</td><td>Sau đợt tăng (đóng hôm trước ≥ 110 % đáy đóng cửa 20 phiên): giá vượt đỉnh cũ hoặc đỉnh phiên trước rồi đóng yếu (≤ 40 % biên độ), nến đỏ hoặc râu trên ≥ 50 %; KL ≥ 1× TB20. Nhãn đặc = vượt đỉnh 60 phiên. Đo: giá 10 phiên sau còn <b>cao hơn</b> mua đại (+0,55 %) — không dùng làm tín hiệu bán.</td></tr>
+   <tr><td><b style="color:var(--dn)">✓</b> đỏ / <b style="color:var(--dn)">Δ</b></td><td>✓ = phiên sau đóng cửa dưới mức 1/3 nến quét (≈ mua đại). Δ = có tick: bán chủ động ≥ 1,5 lần mua và CVD trong phiên đạt đỉnh lúc vượt đỉnh rồi giảm (mới có rất ít lần).</td></tr>
+  </table></div>`);
 { const hb = $('#how-body') || $('#v-how'); const c1 = hb && hb.querySelector('.card'); if (c1) { c1.insertAdjacentHTML('afterend', `<div class="card" id="f6card"><h2>Minh hoạ trên nến: 6 tiêu chí cảnh báo thẻ NGÀY</h2>
   <div class="sub">①②③④ bắt buộc thì có thẻ cảnh báo; ⑤⑥ chỉ thêm dấu ★ tím. Hình 1–2 là nến minh hoạ, hình 3 là lần cảnh báo thật PVD 21/11/2025.</div>
   <h3>Hình 1 · Cảnh báo MUA</h3><div class="hint6">← vuốt ngang để xem hết hình →</div><div class="fig6" id="f6buy"></div><ol class="steps6 b" id="f6buyText"></ol>

@@ -54,3 +54,8 @@ không còn là vùng ở thẻ 15'. Chi tiết và số liệu trước/sau: RE
 ## OB bình thường phải có imbalance (16/10/2026)
 OB bình thường = OB cũ (đỏ→xanh, BOS, đẩy ≥ 1,5 ATR) + có FVG hoặc Volume Imbalance trong nhịp đẩy (nến k … m+2). Chi tiết, số liệu trước/sau:
 README của lab. `src/confluence-flow-lab/data/daily.json`, `alert_stats.json` đã đo lại theo định nghĩa mới; `daily_w60.json`, `*_v1x2.json` là biến thể cũ không có imbalance.
+
+## 19/10/2026 — nhãn LQ trên thẻ nến ngày
+Vá từ lab (người dùng đã duyệt bản lab): `src/confluence-flow-lab/lq.py` (luật Sweep Lab: LQ mua L1/L2/✓L3, LQ bán B1/B2/✓B3/Δ B4),
+`build.py` trả `d.lq`, `template.html` có ô "Nhãn LQ" (mặc định bật), chú giải và mục giải thích ở tab Cách đọc. Δ đọc
+`src/cvd-candle-lab/data/bars.json` do run.py dựng. Luật chưa qua cổng thống kê.
