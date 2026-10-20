@@ -1,14 +1,14 @@
 {
- "daily": "2026-10-19",
+ "daily": "2026-10-20",
  "tick": "2026-10-19",
  "tick_days": 14,
- "full": true,
- "built": "2026-10-19T22:29:36+07:00",
+ "full": false,
+ "built": "2026-10-20T17:15:29+07:00",
  "touches": 192,
  "alert_stage": {
   "valid_ob": 25,
-  "touched": 183,
-  "zone_ok": 116,
+  "touched": 182,
+  "zone_ok": 114,
   "alert": 18,
   "has_data": 0,
   "star": 0
